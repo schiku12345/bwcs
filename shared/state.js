@@ -1,4 +1,4 @@
-// BEDWARS OVERLAY — State Engine 
+// BEDWARS OVERLAY — State Engine v9
 (function(){
 'use strict';
 var CH='bwo9', KEY='bwo9-state';
