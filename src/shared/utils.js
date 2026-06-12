@@ -224,7 +224,7 @@ window.BWO_UTILS = (function () {
    * @returns {string}
    */
   function skinFullURL(username) {
-    return C.SKIN_API.fullBody + encodeURIComponent(username.trim());
+    return C.SKIN_API.fullBody + encodeURIComponent(username.trim()) + '?size=256&overlay';
   }
 
   /**
@@ -235,7 +235,7 @@ window.BWO_UTILS = (function () {
    * @returns {string}
    */
   function skinBustURL(username) {
-    return C.SKIN_API.bust + encodeURIComponent(username.trim());
+    return C.SKIN_API.bust + encodeURIComponent(username.trim()) + '?size=256&overlay';
   }
 
   /**
@@ -247,12 +247,13 @@ window.BWO_UTILS = (function () {
    * @returns {string}
    */
   function skinHeadURL(username, size) {
-    return C.SKIN_API.head + encodeURIComponent(username.trim()) + '/' + (size || 20);
+    return C.SKIN_API.head + encodeURIComponent(username.trim()) + '?size=' + (size || 20) + '&overlay';
   }
 
   /**
    * skinFallbackURL(username) → string
    * Fallback URL when the primary bust image fails to load.
+   * Uses mc-heads.net, then falls back to Steve if that also fails.
    *
    * @param {string} username
    * @returns {string}

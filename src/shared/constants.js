@@ -77,12 +77,13 @@ window.BWO_CONST = (function () {
   /* ─────────────────────────────────────────────────────────────
    * SKIN API URLS
    * Used by overlay/admin to fetch Minecraft player skins.
-   * Visage: full-body renders.  mc-heads: face avatars.
+   * Primary: Crafatar (reliable, cached, CORS-friendly).
+   * Fallback: mc-heads.net
    * ───────────────────────────────────────────────────────────── */
   var SKIN_API = {
-    fullBody:  'https://visage.surgeplay.com/full/256/',
-    bust:      'https://visage.surgeplay.com/bust/256/',
-    head:      'https://mc-heads.net/avatar/',
+    fullBody:     'https://crafatar.com/renders/body/',
+    bust:         'https://crafatar.com/renders/bust/',
+    head:         'https://crafatar.com/avatars/',
     headFallback: 'https://mc-heads.net/avatar/',
   };
 
