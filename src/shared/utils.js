@@ -252,13 +252,13 @@ window.BWO_UTILS = (function () {
 
   /**
    * skinFallbackURL(username) → string
-   * Fallback to Crafatar bust if Visage fails.
+   * Fallback URL when the primary bust image fails to load.
    *
    * @param {string} username
    * @returns {string}
    */
   function skinFallbackURL(username) {
-    return C.SKIN_API.headFallback + encodeURIComponent(username.trim());
+    return C.SKIN_API.headFallback + encodeURIComponent(username.trim()) + '/128';
   }
 
 
