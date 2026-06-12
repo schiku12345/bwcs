@@ -74,19 +74,18 @@ window.BWO_CONFIG = {
    *
    * Leave ALL fields as "" to run in local-only mode (same machine).
    * ────────────────────────────────────────────────────────────── */
-  firebase: {
-    apiKey:            "",   // from firebaseConfig
-    authDomain:        "",   // e.g. "myproject.firebaseapp.com"
-    databaseURL:       "",   // e.g. "https://myproject-default-rtdb.firebaseio.com"
-    projectId:         "",   // e.g. "myproject"
-    storageBucket:     "",   // e.g. "myproject.appspot.com"
-    messagingSenderId: "",
-    appId:             "",
+	firebase: {
+	  apiKey:            "AIzaSyADyR40lW8pANsiZxt_4l90SprV9UgSayk",
+	  authDomain:        "bwcs-d96c5.firebaseapp.com",
+	  databaseURL:       "https://bwcs-d96c5-default-rtdb.us-central1.firebasedatabase.app",
+	  projectId:         "bwcs-d96c5",
+	  storageBucket:     "bwcs-d96c5.firebasestorage.app",
+	  messagingSenderId: "422898300132",
+	  appId:             "1:422898300132:web:0e610a35b8c18864cee8f1",
 
-    /* Firebase Auth credentials for the admin (write access) */
-    adminEmail:    "",   // e.g. "admin@myevent.com"
-    adminPassword: "",   // e.g. "strongPassword123"
-  },
+	  adminEmail:    "admin@bwcs.com",   // fill in after step 6
+	  adminPassword: "Bwcs2026!",   // fill in after step 6
+	},
 
 
 
