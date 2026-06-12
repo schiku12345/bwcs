@@ -61,27 +61,25 @@ window.BWO_FIREBASE = (function () {
 
     _onRemote = onRemoteUpdate;
 
-    /* Dynamically inject the Firebase SDK scripts */
-    var sdkBase = 'https://www.gstatic.com/firebasejs/10.12.2/';
+    /* Load Firebase compat SDKs sequentially — app must load before database/auth */
+    var sdkBase = 'https://www.gstatic.com/firebasejs/9.23.0/';
     var scripts = [
       sdkBase + 'firebase-app-compat.js',
       sdkBase + 'firebase-database-compat.js',
       sdkBase + 'firebase-auth-compat.js',
     ];
 
-    var loaded = 0;
-    scripts.forEach(function (src) {
+    function loadNext(i) {
+      if (i >= scripts.length) { _connect(config); return; }
       var el = document.createElement('script');
-      el.src = src;
-      el.onload = function () {
-        loaded++;
-        if (loaded === scripts.length) _connect(config);
-      };
+      el.src = src = scripts[i];
+      el.onload  = function () { loadNext(i + 1); };
       el.onerror = function () {
-        console.error('[BWO_FIREBASE] Failed to load SDK script:', src);
+        console.error('[BWO_FIREBASE] Failed to load SDK script:', scripts[i]);
       };
       document.head.appendChild(el);
-    });
+    }
+    loadNext(0);
   }
 
   /** Internal — called once all SDK scripts have loaded. */
