@@ -347,7 +347,7 @@
       return '<div class="pu' + (dead ? ' dead' : '') + '">' +
         '<div class="pu-bust" style="width:' + bustSize + ';height:' + bustH + ';">' +
           '<img src="' + U.skinBustURL(name) + '"' +
-            ' onerror="if(!this.dataset.fb){this.dataset.fb=1;this.src=\'' + U.skinFallbackURL(name) + '\'}else{this.onerror=null;this.style.opacity=0;}"' +
+            ' onerror="var el=this;if(!el.dataset.retry){el.dataset.retry=1;setTimeout(function(){el.src=\'' + U.skinBustURL(name) + '\'+'?t='+Date.now();},3000);}else if(!el.dataset.fb){el.dataset.fb=1;el.src=\'' + U.skinFallbackURL(name) + '\';}else{el.onerror=null;el.style.visibility=\'hidden\';}"' +
             ' loading="eager" alt="' + U.escapeHtml(name) + '"/>' +
         '</div>' +
         '<div class="pu-name" style="font-size:' + nameSize + '">' + U.escapeHtml(name) + '</div>' +
@@ -572,7 +572,7 @@
       return '<div style="display:flex;flex-direction:column;align-items:center;gap:3px;">' +
         '<div style="width:' + bustSize + ';height:' + bustH + ';border-radius:6px;overflow:hidden;border:1px solid ' + U.hexToRgba(hex, .25) + ';">' +
           '<img src="' + U.skinBustURL(name) + '"' +
-            ' onerror="if(!this.dataset.fb){this.dataset.fb=1;this.src=\'' + U.skinFallbackURL(name) + '\'}else{this.onerror=null;this.style.opacity=0;}"' +
+            ' onerror="var el=this;if(!el.dataset.retry){el.dataset.retry=1;setTimeout(function(){el.src=\'' + U.skinBustURL(name) + '\'+'?t='+Date.now();},3000);}else if(!el.dataset.fb){el.dataset.fb=1;el.src=\'' + U.skinFallbackURL(name) + '\';}else{el.onerror=null;el.style.visibility=\'hidden\';}"' +
             ' style="width:100%;height:100%;object-fit:cover;" loading="lazy"/>' +
         '</div>' +
         '<div style="font-size:' + nameSize + ';font-weight:700;color:rgba(255,255,255,.85);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:' + bustSize + ';">' +
@@ -676,7 +676,7 @@
         return '<div class="winner-player" style="animation-delay:' + (i * .15) + 's">' +
           '<img class="winner-skin"' +
             ' src="' + U.skinFullURL(name) + '"' +
-            ' onerror="if(!this.dataset.fb){this.dataset.fb=1;this.src=\'' + U.skinFallbackURL(name) + '\'}else{this.onerror=null;this.style.opacity=0;}"' +
+            ' onerror="var el=this;if(!el.dataset.retry){el.dataset.retry=1;setTimeout(function(){el.src=\'' + U.skinBustURL(name) + '\'+'?t='+Date.now();},3000);}else if(!el.dataset.fb){el.dataset.fb=1;el.src=\'' + U.skinFallbackURL(name) + '\';}else{el.onerror=null;el.style.visibility=\'hidden\';}"' +
             ' loading="lazy"' +
             ' style="width:' + skinW + ';filter:drop-shadow(0 0 20px ' + acc + ')"/>' +
           '<div class="winner-ign" style="font-size:' + ignSz + '">' + U.escapeHtml(name) + '</div>' +
