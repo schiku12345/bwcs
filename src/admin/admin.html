@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<!--
+  admin.html — Bedwars Overlay Admin Panel
+  =========================================
+  Control panel for managing a live Bedwars tournament stream.
+
+  All styles  → src/admin/admin.css
+  All logic   → src/admin/admin.js + src/admin/modules/*.js
+
+  SCRIPT LOAD ORDER (bottom of <body>):
+    1. config/config.js
+    2. src/shared/constants.js
+    3. src/shared/utils.js
+    4. src/shared/state.js
+    5. src/admin/modules/dashboard.js
+    6. src/admin/modules/teams.js
+    7. src/admin/modules/gamesetup.js
+    8. src/admin/modules/stats.js
+    9. src/admin/modules/history.js
+   10. src/admin/modules/infoCards.js
+   11. src/admin/modules/streamScreens.js
+   12. src/admin/modules/layoutEditor.js
+   13. src/admin/modules/themeConfig.js
+   14. src/admin/admin.js   ← wires everything together
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Bedwars Admin</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="admin.css"/>
+</head>
+<body>
+
+  <!-- Admin password gate — shown before boot if adminUiPassword is set in config.js -->
+  <div id="admin-gate" style="
+    display: none; position: fixed; inset: 0; z-index: 10000;
+    background: #060810;
+    align-items: center; justify-content: center;
+  ">
+    <style>
+      @keyframes gate-shake {
+        0%,100% { transform: translateX(0); }
+        20%      { transform: translateX(-8px); }
+        40%      { transform: translateX(8px); }
+        60%      { transform: translateX(-5px); }
+        80%      { transform: translateX(5px); }
+      }
+    </style>
+    <div id="gate-form" style="
+      width: 320px; padding: 40px 36px;
+      background: #0b0e18; border: 1px solid rgba(255,255,255,.08);
+      border-radius: 16px; text-align: center;
+    ">
+      <div style="font-family:'Orbitron',monospace; font-size:11px; font-weight:900;
+                  letter-spacing:4px; color:rgba(255,255,255,.85); margin-bottom:6px;">BWO</div>
+      <div style="font-family:'Rajdhani',sans-serif; font-size:11px; letter-spacing:2px;
+                  color:rgba(255,255,255,.25); text-transform:uppercase; margin-bottom:28px;">Admin Panel</div>
+      <input id="gate-pw-input" type="password" placeholder="Password"
+        style="width:100%; padding:10px 14px; background:rgba(255,255,255,.04);
+               border:1px solid rgba(255,255,255,.1); border-radius:8px;
+               color:rgba(255,255,255,.85); font-size:14px; font-family:'Rajdhani',sans-serif;
+               outline:none; text-align:center; letter-spacing:4px; margin-bottom:10px;"
+      />
+      <div id="gate-pw-err" style="font-size:11px; color:#ff4a4a; margin-bottom:10px;
+                                   opacity:0; transition:opacity .2s; letter-spacing:1px;">
+        Incorrect password
+      </div>
+      <button id="gate-pw-btn" style="
+        width:100%; padding:11px; background:#4488ff; color:#fff; border:none;
+        border-radius:8px; font-family:'Orbitron',monospace; font-size:10px;
+        font-weight:700; letter-spacing:2px; cursor:pointer; text-transform:uppercase;
+      ">Unlock</button>
+    </div>
+  </div>
+
+  <!-- Boot loading overlay — dismissed by admin.js once _ready = true -->
+  <div id="boot-overlay" style="
+    position: fixed; inset: 0; z-index: 9999;
+    background: #060810;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 12px; pointer-events: all;
+    transition: opacity .25s;
+  ">
+    <div style="font-family: 'Orbitron', monospace; font-size: 22px; font-weight: 900; color: rgba(255,255,255,.9); letter-spacing: 6px;">BWO</div>
+    <div style="width: 120px; height: 1px; background: rgba(255,255,255,.08); border-radius: 1px; overflow: hidden; position: relative;">
+      <div id="boot-bar" style="height: 100%; width: 0; background: #4488ff; border-radius: 1px; transition: width .35s ease;"></div>
+    </div>
+    <div id="boot-status" style="font-family: 'Rajdhani', sans-serif; font-size: 10px; color: rgba(255,255,255,.25); letter-spacing: 1.5px; text-transform: uppercase;"></div>
+  </div>
+
+  <!-- Sidebar collapse tab — positioned by admin.js positionTab() -->
+  <div id="sb-tab" onclick="toggleSidebar()">‹</div>
+
+  <div id="app">
+
+    <!-- ────────────────────────────────────────────────────────────
+         SIDEBAR NAVIGATION
+    ──────────────────────────────────────────────────────────────── -->
+    <nav id="sidebar">
+      <div class="sl-logo">
+        <h1>BEDWARS<br>OVERLAY</h1>
+        <p>Tournament Mode v11</p>
+      </div>
+
+      <div class="sl-sec">Live Control</div>
+      <div class="ni active" data-page="dash">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </div>
+      <div class="ni" data-page="teams">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><circle cx="19" cy="7" r="2"/><path d="M23 21v-1a2 2 0 0 0-2-2h-2"/></svg>
+        Teams
+      </div>
+      <div class="ni" data-page="game">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Game Setup
+      </div>
+      <div class="ni" data-page="scores">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Scores &amp; Stats
+      </div>
+      <div class="ni" data-page="standings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        History
+      </div>
+      <div class="ni" data-page="tourn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13"/></svg>
+        Info Cards
+      </div>
+      <div class="ni" data-page="stream">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49M7.76 7.76a6 6 0 0 0 0 8.49"/></svg>
+        Stream Screens
+      </div>
+
+
+      <div class="sl-sec">Config</div>
+      <div class="ni" data-page="layout">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+        Layout Editor
+      </div>
+      <div class="ni" data-page="config">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+        Theme &amp; Config
+      </div>
+
+      <div class="sl-foot">
+        <div class="live-w"><div class="ldot"></div>LIVE SYNC</div>
+        <div style="font-size:8px;color:var(--mut);margin-top:3px;">BroadcastChannel + localStorage</div>
+      </div>
+    </nav><!-- /sidebar -->
+
+
+    <!-- ────────────────────────────────────────────────────────────
+         MAIN CONTENT AREA
+    ──────────────────────────────────────────────────────────────── -->
+    <main id="main-content">
+
+      <!-- Toast notification area (managed by BWO_ADMIN_UI.notify) -->
+      <div id="notify-area" aria-live="polite"></div>
+
+
+      <!-- ══════════════════════════════════════════════════════════
+           PAGE: DASHBOARD
+      ══════════════════════════════════════════════════════════════ -->
+      <div id="pg-dash" class="pg active">
+
+        <!-- Header row -->
+        <div class="dash-header">
+          <div class="dash-header-left">
+            <span class="dash-game-badge">GAME <span id="d-gamenum">1</span></span>
+            <span id="d-stage" class="dash-stage-badge"></span>
+          </div>
+          <button class="btn btn-g btn-sm" onclick="window.open('../overlay/overlay.html','_blank')">Open Overlay ↗</button>
+        </div>
+
+        <!-- Screen switcher -->
+        <div class="dash-section-label">SCREEN</div>
+        <div class="ovm-grid">
+          <div class="ovm-btn" id="ovm-starting" onclick="setOvMode('starting')"><span class="ovm-icon">⏳</span>STARTING</div>
+          <div class="ovm-btn" id="ovm-game"     onclick="setOvMode('game')"    ><span class="ovm-icon">🎮</span>GAME</div>
+          <div class="ovm-btn" id="ovm-brb"      onclick="setOvMode('brb')"     ><span class="ovm-icon">☕</span>BRB</div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="dash-section-label">QUICK ACTIONS</div>
+        <div id="qa-panel">
+
+          <div class="qa-section" id="qa-starting">
+            <div class="qa-row">
+              <span class="qa-lbl">Event</span>
+              <input class="qa-inp" id="qa-event" type="text" placeholder="Event name" oninput="saveStream()"/>
+            </div>
+            <div class="qa-row">
+              <span class="qa-lbl">Subtitle</span>
+              <input class="qa-inp" id="qa-sub" type="text" placeholder="Subtitle" oninput="saveStream()"/>
+            </div>
+            <div class="qa-row">
+              <span class="qa-lbl">Timer</span>
+              <div class="st-timer-disp" id="st-timer-disp" style="flex:1;font-size:16px;">0:00</div>
+              <button class="btn btn-gr btn-sm" id="st-btn-ss" onclick="toggleStartingTimer()">▶</button>
+              <button class="btn btn-g  btn-sm" onclick="resetStartingTimer()">↺</button>
+            </div>
+            <div class="qa-row">
+              <button class="btn btn-pu btn-sm" onclick="openMapModal(false)">🗺️ Pick Map &amp; Start Game</button>
+            </div>
+          </div>
+
+          <div class="qa-section" id="qa-game">
+            <div class="qa-row">
+              <button class="btn btn-gr" id="dash-ss" onclick="toggleTimer()">▶ Start</button>
+              <button class="btn btn-g"               onclick="resetTimer()">↺ Reset</button>
+              <button class="btn btn-or"              onclick="openFinishModal()">🏁 Finish Game</button>
+            </div>
+            <div class="qa-row dash-timer-row">
+              <span class="qa-lbl">Timer</span>
+              <div id="d-timer" class="dash-timer-val">PREGAME</div>
+            </div>
+            <div class="qa-row">
+              <span class="qa-lbl">Map</span>
+              <span id="d-mapname" class="dash-map-name">—</span>
+              <button class="btn btn-g btn-sm" onclick="openMapModal(false)">Change</button>
+            </div>
+            <div class="qa-row">
+              <span class="qa-lbl">Cycle</span>
+              <input class="qa-inp" id="inp-cycle-dash" type="number" min="2" max="60" style="width:50px;flex:none;" oninput="saveCycleDash()"/>
+              <span style="font-size:10px;color:var(--mut);">sec</span>
+            </div>
+          </div>
+
+          <div class="qa-section" id="qa-summary">
+            <p class="help" style="margin-bottom:6px;">Winner is auto-set from placement #1. Standings show after the winner screen.</p>
+            <div class="qa-row">
+              <button class="btn btn-pu" onclick="openMapModal(true)">🗺️ Play Map Reveal</button>
+            </div>
+            <div class="qa-row">
+              <button class="btn btn-g btn-sm" onclick="setOvMode('game')">↩ Back to Game</button>
+            </div>
+          </div>
+
+          <div class="qa-section" id="qa-map">
+            <div class="qa-row">
+              <span class="qa-lbl">Map</span>
+              <select class="qa-inp sel" id="sel-map-dash" onchange="saveSelectedMap()"><option value="">— Choose —</option></select>
+            </div>
+            <div class="qa-row">
+              <span class="qa-lbl">Anim</span>
+              <select class="qa-inp sel" id="sel-map-tr" onchange="saveMapTransition()">
+                <option value="slot">Slot Machine</option>
+                <option value="roulette">Roulette</option>
+                <option value="fade">Fade</option>
+                <option value="flip">Flip</option>
+                <option value="glitch">Glitch</option>
+              </select>
+            </div>
+            <div class="qa-row">
+              <button class="btn btn-pu" onclick="triggerMapReveal()">🎲 Reveal</button>
+              <button class="btn btn-g btn-sm" onclick="setOvMode('game')">↩ Back</button>
+            </div>
+          </div>
+
+          <div class="qa-section" id="qa-brb">
+            <div class="qa-row">
+              <span class="qa-lbl">Subtitle</span>
+              <input class="qa-inp" id="qa-brb-sub" type="text" placeholder="Be Right Back" oninput="saveStream()"/>
+            </div>
+            <div class="qa-row">
+              <button class="btn btn-gr btn-sm" onclick="setOvMode('game')">↩ Back to Game</button>
+            </div>
+          </div>
+
+        </div><!-- /qa-panel -->
+
+        <!-- Slots summary -->
+        <div class="dash-section-label">SLOTS</div>
+        <div class="card" style="padding:10px 12px;">
+          <div id="d-slots" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+        </div>
+
+        <!-- Match info -->
+        <div class="dash-section-label">MATCH INFO</div>
+        <div class="card">
+          <div class="g2">
+            <div class="f">
+              <label>Game Number</label>
+              <input type="number" id="inp-gnum" min="1" value="1" oninput="saveMatchInfo()"/>
+            </div>
+            <div class="f">
+              <label>Stage</label>
+              <select id="inp-stage" onchange="saveMatchInfo()">
+                <option value="">— None —</option>
+                <option value="Group Stage">Group Stage</option>
+                <option value="Quarter Finals">Quarter Finals</option>
+                <option value="Semi Finals">Semi Finals</option>
+                <option value="Finals">Finals</option>
+                <option value="Grand Finals">Grand Finals</option>
+              </select>
+            </div>
+          </div>
+          <div class="f">
+            <label>Map Name (shown on overlay)</label>
+            <input type="text" id="inp-mapname" placeholder="e.g. Aquila" oninput="saveMatchInfo()"/>
+          </div>
+        </div>
+
+        <!-- OBS URL -->
+        <div class="card" style="margin-top:6px;">
+          <div class="dash-obs-label">OBS Browser Source URL</div>
+          <div style="display:flex;gap:6px;">
+            <input id="obs-url" type="text" readonly class="dash-obs-input"/>
+            <button class="btn btn-g btn-sm" onclick="copyOBS()">Copy</button>
+          </div>
+        </div>
+
+      </div><!-- /pg-dash -->
+
+
+
+      <!-- ══════════════════════════════════════════════════════════
+           PAGE: TEAMS
+      ══════════════════════════════════════════════════════════════ -->
+      <div id="pg-teams" class="pg">
+        <div class="h1">Teams</div>
+        <p class="help" style="margin-bottom:8px;">
+          Create teams here. Assign colours per-game in <strong>Game Setup</strong>. Teams persist across all games.
+        </p>
+        <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;align-items:center;">
+          <button class="btn btn-p btn-sm" onclick="addTeam()">+ Add Team</button>
+          <button class="btn btn-g btn-sm" onclick="document.getElementById('team-csv-file').click()">📂 Import CSV</button>
+          <button class="btn btn-d btn-sm" onclick="if(confirm('Clear all teams?'))clearAllTeams()">Clear All</button>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
+            <span style="font-size:10px;color:var(--mut);font-weight:700;">PLAYERS PER TEAM</span>
+            <select id="team-size-sel"
+              style="background:#fff;color:#111;border:1px solid var(--bor);border-radius:4px;padding:4px 8px;font-size:11px;font-weight:700;outline:none;"
+              onchange="setTeamSize(this.value)">
+              <option value="2">2 Players</option>
+              <option value="4" selected>4 Players</option>
+            </select>
+          </div>
+        </div>
+        <div class="drop-zone" onclick="document.getElementById('team-csv-file').click()" style="margin-bottom:10px;">
+          📂 CSV: <code>TEAMNAME, PLAYER1, PLAYER2, PLAYER3, PLAYER4</code> — one team per row
+        </div>
+        <input type="file" id="team-csv-file" accept=".csv,.txt" style="display:none"
+          onchange="handleTeamCSVFile(this)"/>
+        <div id="team-list"></div>
+      </div><!-- /pg-teams -->
+
+
+      <!-- ══════════════════════════════════════════════════════════
+           PAGE: GAME SETUP
+      ══════════════════════════════════════════════════════════════ -->
+      <div id="pg-game" class="pg">
+        <div class="h1">Game Setup — Colour Slots</div>
+        <p class="help" style="margin-bottom:8px;">Assign a team to each colour. Supports single-game or multi-game CSV.</p>
+        <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
+          <button class="btn btn-p btn-sm" onclick="addSlot()">+ Add Slot</button>
+          <button class="btn btn-g btn-sm" onclick="document.getElementById('game-csv-file').click()">📂 Import CSV</button>
+          <button class="btn btn-d btn-sm" onclick="clearSlots()">Clear Slots</button>
+        </div>
+        <div class="drop-zone" onclick="document.getElementById('game-csv-file').click()" style="margin-bottom:10px;">
+          <strong>Single game:</strong> <code>Red, TeamName</code><br/>
+          <strong>Multi-game + map:</strong> <code>Game, Map, Red, Blue, ...</code> (Map column optional)<br/>
+          <span style="font-size:9px;color:var(--mut);">e.g. row: <code>1, Aquila, TeamA, TeamB</code></span>
+        </div>
+        <input type="file" id="game-csv-file" accept=".csv,.txt" style="display:none"
+          onchange="handleGameCSVFile(this)"/>
+        <div class="card"><div id="slot-list"></div></div>
+
+        <!-- ── GAME QUEUE ── -->
+        <div class="h1" style="margin-top:14px;">
+          Game Queue
+          <span style="font-size:9px;color:var(--mut);font-weight:400;margin-left:6px;">auto-advances after each Finish Game</span>
+        </div>
+        <p class="help" style="margin-bottom:8px;">
+          Import a multi-game CSV above, or add games manually. The active game loads its slots + map automatically.
+        </p>
+        <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;align-items:center;">
+          <input type="text" id="queue-add-map" placeholder="Map name (optional)"
+            style="flex:1;min-width:120px;background:rgba(255,255,255,.06);border:1px solid var(--bor);border-radius:4px;color:var(--txt);font-family:var(--fb);font-size:11px;padding:5px 8px;outline:none;"/>
+          <button class="btn btn-p btn-sm" onclick="addQueueGame()">+ Add Current Slots</button>
+          <button class="btn btn-d btn-sm" onclick="clearQueue()">Clear Queue</button>
+        </div>
+        <div id="game-queue-list" style="display:flex;flex-direction:column;gap:5px;"></div>
+      </div><!-- /pg-game -->
+
+
+      <!-- ══════════════════════════════════════════════════════════
+           PAGE: SCORES & STATS
+      ══════════════════════════════════════════════════════════════ -->
+      <div id="pg-scores" class="pg">
+        <div class="h1">This Game — Points Preview</div>
+        <p class="help" style="margin-bottom:8px;">Live stat-points preview per team. Set placement in Finish Game to see totals.</p>
+        <div id="sc-summary"></div>
+
+        <div class="h1">Player Stats</div>
+        <div class="card">
+          <div class="drop-zone" onclick="document.getElementById('stat-csv-file').click()" style="margin-bottom:8px;">
+            📂 Stats CSV: <code>IGN, KILLS, DEATHS, FINALS, BEDBREAKS</code>
+          </div>
+          <input type="file" id="stat-csv-file" accept=".csv,.txt" style="display:none"
+            onchange="handleStatCSVFile(this)"/>
+          <div id="csv-stat-preview" style="display:none;margin-bottom:7px;font-size:10px;color:var(--mut);"></div>
+          <div style="display:flex;gap:6px;margin-bottom:8px;">
+            <button class="btn btn-p btn-sm" id="stat-csv-apply" style="display:none" onclick="applyStatCSV()">✓ Apply CSV</button>
+            <button class="btn btn-d btn-sm" onclick="clearStats()">Clear Stats</button>
+          </div>
+          <div id="pstat-table"></div>
+        </div>
+
+        <div class="h1">Kill / Death Point Rules</div>
+        <div class="card">
+          <div class="pr-row"><div class="pr-label">Kill</div>                                    <input class="pr-inp" id="pr-kills"     type="number" min="0"  step=".5" value="1" oninput="savePR()"/></div>
+          <div class="pr-row"><div><div class="pr-label">Death</div><div class="pr-sub">can be negative</div></div><input class="pr-inp" id="pr-deaths"   type="number"       step=".5" value="0" oninput="savePR()"/></div>
+          <div class="pr-row"><div class="pr-label">Final Kill</div>                              <input class="pr-inp" id="pr-finals"    type="number" min="0"  step=".5" value="2" oninput="savePR()"/></div>
+          <div class="pr-row"><div class="pr-label">Bed Break</div>                               <input class="pr-inp" id="pr-bedbreaks" type="number" min="0"  step=".5" value="3" oninput="savePR()"/></div>
+        </div>
+
+        <div class="h1">Placement Bonus Points</div>
+        <p class="help" style="margin-bottom:8px;">Points awarded per finishing position. Added on top of stat points when a game is finished.</p>
+        <div class="card" id="placement-rules-card"></div>
+      </div><!-- /pg-scores -->
+
+
+      <!-- ══════════════════════════════════════════════════════════
+           PAGE: HISTORY (formerly Standings)
+      ══════════════════════════════════════════════════════════════ -->
+      <div id="pg-standings" class="pg">
+        <div class="h1">Current Standings</div>
+        <div class="card"><div id="standings-preview"></div></div>
+
+        <div class="h1">
+          Game History &amp; Point Contributions
+          <span style="font-size:9px;color:var(--mut);font-weight:400;">(click game header to edit)</span>
+        </div>
+        <div class="card" id="hist-contribution-card">
+          <div id="hist-contribution-table"></div>
+        </div>
+
+        <!-- Inline game editor (hidden until a game is clicked) -->
+        <div id="hist-editor" style="display:none;" class="card">
+          <div style="font-family:var(--fd);font-size:9px;font-weight:900;letter-spacing:2px;color:var(--acc2);margin-bottom:10px;">
+            ✏️ EDITING GAME <span id="he-num"></span>
+          </div>
+          <div class="f">
+            <label>Map Name</label>
+            <input type="text" id="he-map"
+              style="background:rgba(255,255,255,.06);border:1px solid var(--bor);border-radius:4px;color:var(--txt);font-family:var(--fb);font-size:12px;padding:5px 8px;outline:none;width:100%;"/>
+          </div>
+          <div id="he-rows"></div>
+          <div style="display:flex;gap:7px;margin-top:10px;flex-wrap:wrap;">
+            <button class="btn btn-p btn-sm" onclick="saveHistEdit()">✓ Save</button>
+            <button class="btn btn-g btn-sm" onclick="cancelHistEdit()">Cancel</button>
+            <button class="btn btn-d btn-sm" onclick="deleteHistGame()">Delete Game</button>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
+          <button class="btn btn-d btn-sm"
+            onclick="if(confirm('Reset ALL tournament points and history?'))resetTournament()">
+            Reset Tournament
+          </button>
+        </div>
+      </div><!-- /pg-standings -->
+
+
+      <!-- ══════════════════════════════════════════════════════════
+           PAGE: INFO CARDS
+      ══════════════════════════════════════════════════════════════ -->
+      <div id="pg-tourn" class="pg">
+        <div class="h1">Tournament Info Cards</div>
+        <p class="help" style="margin-bottom:8px;">Shown in the top-left panel during game overlay.</p>
+        <button class="btn btn-g btn-sm" onclick="addTCard()" style="margin-bottom:10px;">+ Add Card</button>
+        <div id="tc-list"></div>
+        <div class="card" style="margin-top:6px;">
+          <div class="f">
+            <label>Cycle Interval (seconds)</label>
+            <input type="number" id="tc-interval" min="3" max="120" value="10"
+              oninput="saveTCInterval()"/>
+          </div>
+        </div>
+      </div><!-- /pg-tourn -->
+
+
+      <!-- ══════════════════════════════════════════════════════════
+           PAGE: STREAM SCREENS
+      ══════════════════════════════════════════════════════════════ -->
+      <div id="pg-stream" class="pg">
+        <div class="h1">Starting Game Screen</div>
+        <div class="card">
+          <div class="g2">
+            <div class="f"><label>Event Name</label><input type="text" id="inp-event-name" placeholder="All Stars S9 — Day 1" oninput="saveStream()"/></div>
+            <div class="f"><label>Subtitle</label><input type="text" id="inp-start-sub" placeholder="Starting Game" oninput="saveStream()"/></div>
+          </div>
+          <div class="g2">
+            <div class="f"><label>Logo URL</label><input type="url" id="inp-start-logo" placeholder="https://..." oninput="saveStream()"/></div>
+            <div class="f"><label>Logo Animation</label>
+              <select id="inp-start-anim" onchange="saveStream()">
+                <option value="pulse">Pulse</option>
+                <option value="float">Float</option>
+                <option value="bounce">Bounce</option>
+                <option value="spin">Spin</option>
+                <option value="glitch">Glitch</option>
+              </select>
+            </div>
+          </div>
+          <div class="f">
+            <label>Count Down From (mm:ss or seconds — 0 = count up)</label>
+            <input type="text" id="inp-countdown-from" placeholder="e.g. 10:00 or 600" oninput="saveCountdown()"/>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;margin-top:4px;">
+            <div class="st-timer-disp" id="st-pg-timer">0:00</div>
+            <button class="btn btn-gr btn-sm" id="st-pg-btn" onclick="toggleStartingTimer()">▶</button>
+            <button class="btn btn-g  btn-sm" onclick="resetStartingTimer()">↺</button>
+          </div>
+        </div>
+
+        <div class="h1">BRB Screen</div>
+        <div class="card">
+          <div class="g2">
+            <div class="f"><label>BRB Subtitle</label><input type="text" id="inp-brb-sub" placeholder="Be Right Back" oninput="saveStream()"/></div>
+            <div class="f"><label>Logo URL</label><input type="url" id="inp-brb-logo" placeholder="https://..." oninput="saveStream()"/></div>
+          </div>
+          <div class="g2">
+            <div class="f"><label>Logo Animation</label>
+              <select id="inp-brb-anim" onchange="saveStream()">
+                <option value="float">Float</option>
+                <option value="pulse">Pulse</option>
+                <option value="bounce">Bounce</option>
+                <option value="spin">Spin</option>
+                <option value="glitch">Glitch</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="h1">Overlay Visibility (Game Mode)</div>
+        <div class="card" id="vis-list"></div>
+
+        <div class="h1">Background Media</div>
+        <p class="help" style="margin-bottom:8px;">Video loops over image fallback. Per-screen URLs override the shared setting.</p>
+        <div class="card">
+          <div style="font-size:9px;color:var(--mut);font-weight:700;letter-spacing:1px;margin-bottom:8px;">SHARED (all screens)</div>
+          <div class="g2">
+            <div class="f"><label>Video URL</label><input type="url" id="shared-vid" placeholder="https://.../bg.mp4" oninput="saveBgMedia()"/></div>
+            <div class="f"><label>Image URL</label><input type="url" id="shared-img" placeholder="https://.../bg.jpg" oninput="saveBgMedia()"/></div>
+          </div>
+          <div style="font-size:9px;color:var(--mut);font-weight:700;letter-spacing:1px;margin:8px 0 6px;">PER-SCREEN OVERRIDES</div>
+          <div class="g2">
+            <div class="f"><label>Starting Video</label><input type="url" id="starting-vid" oninput="saveBgMedia()"/></div>
+            <div class="f"><label>Starting Image</label><input type="url" id="starting-img" oninput="saveBgMedia()"/></div>
+          </div>
+          <div class="g2">
+            <div class="f"><label>BRB Video</label><input type="url" id="brb-vid" oninput="saveBgMedia()"/></div>
+            <div class="f"><label>BRB Image</label><input type="url" id="brb-img" oninput="saveBgMedia()"/></div>
+          </div>
+          <div class="g2">
+            <div class="f"><label>Winner / Standings Video</label><input type="url" id="sum-vid" oninput="saveBgMedia()"/></div>
+            <div class="f"><label>Map Screen Video</label><input type="url" id="map-vid" oninput="saveBgMedia()"/></div>
+          </div>
+        </div>
+      </div><!-- /pg-stream -->
+
+
+
+
+
+      <!-- ══════════════════════════════════════════════════════════
+           PAGE: LAYOUT EDITOR
+      ══════════════════════════════════════════════════════════════ -->
+      <div id="pg-layout" class="pg">
+        <div class="h1">Layout Editor</div>
+        <p class="help" style="margin-bottom:10px;">
+          <strong>Click</strong> to select · <strong>Drag</strong> to move · <strong>8 handles</strong> to resize ·
+          <strong>Arrow keys</strong> to nudge (Shift = 10px) · Elements snap to grid &amp; each other
+        </p>
+
+        <!-- Resolution controls -->
+        <div id="le-resolution-controls"></div>
+
+        <!-- OBS-style editor layout: canvas left, inspector right -->
+        <div style="display:flex;gap:10px;align-items:flex-start;">
+
+          <!-- Canvas area -->
+          <div style="flex:1;min-width:0;padding-right:6px;">
+            <div id="le-canvas">
+              <!-- Live overlay preview iframe (scaled to fit canvas) -->
+              <iframe id="le-iframe" src="../overlay/overlay.html" scrolling="no" tabindex="-1"></iframe>
+              <!-- Transparent drag/resize handles layer on top of iframe -->
+              <div id="le-handles"></div>
+            </div>
+          </div>
+
+          <!-- Inspector panel -->
+          <div id="le-inspector" class="card" style="width:190px;flex-shrink:0;font-size:11px;"></div>
+
+        </div>
+
+        <!-- Display settings -->
+        <div class="card" style="margin-top:10px;">
+          <div style="font-family:var(--fd);font-size:8px;font-weight:700;letter-spacing:1.5px;color:var(--mut);margin-bottom:8px;">DISPLAY SETTINGS</div>
+          <div class="g2">
+            <div class="f"><label>Team Cycle (sec)</label><input type="number" id="inp-cycle" min="2" max="60" value="8" oninput="saveDisp()"/></div>
+            <div class="f"><label>Transition</label>
+              <select id="inp-trans" onchange="saveDisp()">
+                <option value="slide">Slide</option>
+                <option value="fade">Fade</option>
+                <option value="flip">Flip</option>
+              </select>
+            </div>
+          </div>
+          <div class="tog">
+            <div class="tog-lbl">Auto-cycle teams</div>
+            <label class="sw">
+              <input type="checkbox" id="inp-auto" onchange="saveDisp()"/>
+              <div class="trk"></div>
+              <div class="thm"></div>
+            </label>
+          </div>
+        </div>
+      </div><!-- /pg-layout -->
+
+
+      <!-- ══════════════════════════════════════════════════════════
+           PAGE: THEME & CONFIG
+      ══════════════════════════════════════════════════════════════ -->
+      <div id="pg-config" class="pg">
+
+        <div class="h1">Load Physical Config</div>
+        <div class="card">
+          <p class="help" style="margin-bottom:8px;">
+            Edit <code>config/config.js</code> with your maps, icons, and settings, then click below to apply.
+          </p>
+          <button class="btn btn-p" onclick="loadConfigFile()">📂 Load config.js</button>
+          <div id="config-load-status" style="font-size:10px;color:var(--grn);margin-top:6px;display:none;"></div>
+        </div>
+
+        <div class="h1">Accent Colour</div>
+        <div class="card">
+          <div class="preset-grid" id="preset-grid"></div>
+          <div style="display:flex;align-items:center;gap:9px;margin-top:8px;">
+            <input type="color" id="custom-cp" value="#4488ff" oninput="onCustomColour(this.value)"
+              style="width:38px;height:32px;border:none;padding:0;background:none;cursor:pointer;border-radius:5px;"/>
+            <div>
+              <div style="font-size:11px;font-weight:700;">Custom</div>
+              <div style="font-size:9px;color:var(--mut);">Auto-generates 2nd accent</div>
+            </div>
+            <input type="text" id="custom-hex" placeholder="#4488ff" maxlength="7"
+              style="width:76px;background:rgba(255,255,255,.06);border:1px solid var(--bor);border-radius:4px;color:var(--txt);font-family:monospace;font-size:12px;padding:5px 7px;outline:none;"
+              oninput="onHexInput(this.value)"/>
+          </div>
+        </div>
+
+        <div class="h1">Map Pool</div>
+        <button class="btn btn-g btn-sm" onclick="addMap()" style="margin-bottom:8px;">+ Add Map</button>
+        <div id="map-pool-list"></div>
+
+        <div class="h1">Phase Icons (Custom Images)</div>
+        <p class="help" style="margin-bottom:8px;">Optional image URLs. Leave blank to use default emoji.</p>
+        <div class="card">
+          <div class="g2">
+            <div class="f"><label>💎 Diamond phases</label><input type="url" id="ico-diamond" placeholder="https://..." oninput="saveIcons()"/></div>
+            <div class="f"><label>◈ Emerald phases</label><input type="url" id="ico-emerald" placeholder="https://..." oninput="saveIcons()"/></div>
+          </div>
+          <div class="g2">
+            <div class="f"><label>🛏 Bed Destruction</label><input type="url" id="ico-bed"     placeholder="https://..." oninput="saveIcons()"/></div>
+            <div class="f"><label>💔 Bed Gone (team card)</label><input type="url" id="ico-bedgone" placeholder="https://..." oninput="saveIcons()"/></div>
+          </div>
+          <div class="g2">
+            <div class="f"><label>☠ Skull / Sudden Death</label><input type="url" id="ico-skull" placeholder="https://..." oninput="saveIcons()"/></div>
+          </div>
+        </div>
+
+      </div><!-- /pg-config -->
+
+    </main><!-- /main-content -->
+  </div><!-- /app -->
+
+
+  <!-- ────────────────────────────────────────────────────────────
+       MAP PICKER MODAL
+       Opened after Finish Game or from "Pick Map & Start" button.
+  ──────────────────────────────────────────────────────────────── -->
+  <div class="modal-overlay" id="map-modal">
+    <div class="modal-box">
+      <div class="modal-title" id="map-modal-title">🗺️ PICK MAP</div>
+      <p class="help" style="margin-bottom:12px;" id="map-modal-desc">
+        Select the map. Reveal plays, then game overlay shows after 10 seconds.
+      </p>
+      <select class="modal-sel" id="mm-map-sel"><option value="">— Choose map —</option></select>
+      <select class="modal-sel" id="mm-anim-sel">
+        <option value="slot">Slot Machine</option>
+        <option value="roulette">Roulette</option>
+        <option value="fade">Fade</option>
+        <option value="flip">Flip</option>
+        <option value="glitch">Glitch</option>
+      </select>
+      <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;">
+        <button class="btn btn-pu" id="map-modal-confirm-btn" onclick="confirmMapPick()">🎲 Play Reveal</button>
+        <button class="btn btn-g"  onclick="skipMapReveal()">⏭ Skip Reveal</button>
+        <button class="btn btn-g"  onclick="closeMapModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ────────────────────────────────────────────────────────────
+       FINISH GAME MODAL
+       Placement ordering with drag-to-reorder.
+  ──────────────────────────────────────────────────────────────── -->
+  <div class="modal-overlay" id="finish-modal">
+    <div class="modal-box" style="max-width:500px;">
+      <div class="modal-title">🏁 FINISH GAME</div>
+      <p class="help" style="margin-bottom:8px;">
+        Drag ⠿ to reorder or type a rank number. Team in 1st is auto-set as winner.
+      </p>
+      <div style="font-size:9px;color:var(--mut);font-weight:700;letter-spacing:1px;margin-bottom:6px;">
+        PLACEMENT ORDER
+      </div>
+      <div id="fm-placements" style="margin-bottom:12px;"></div>
+      <p class="help" style="margin-bottom:12px;">
+        After confirming, you'll pick the next map. Reveal auto-switches to game after 10s.
+      </p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-gr" onclick="confirmFinishGame()">✓ Save &amp; Pick Next Map</button>
+        <button class="btn btn-g"  onclick="closeFinishModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ────────────────────────────────────────────────────────────
+       SCRIPTS — load order is critical
+  ──────────────────────────────────────────────────────────────── -->
+
+  <!-- Physical config (maps, icons, etc.) -->
+  <script src="../../config/config.js"></script>
+
+  <!-- Shared modules (no dependencies between them except constants → utils → state) -->\n  <script src="../shared/constants.js"></script>
+  <script src="../shared/utils.js"></script>
+  <script src="../shared/firebase-sync.js"></script>
+  <script src="../shared/state.js"></script>
+
+  <!-- Admin auth gate (must load before admin.js boots) -->
+  <script src="admin-auth.js"></script>
+
+  <!-- Admin feature modules (each depends on shared + BWO_ADMIN_UI from admin.js) -->
+  <!-- BWO_ADMIN_UI is defined at the top of admin.js — must be loaded AFTER modules -->
+  <!-- But modules reference it lazily (at call time, not define time), so this works -->
+  <script src="modules/dashboard.js"></script>
+  <script src="modules/teams.js"></script>
+  <script src="modules/gamesetup.js"></script>
+  <script src="modules/stats.js"></script>
+  <script src="modules/history.js"></script>
+  <script src="modules/infoCards.js"></script>
+  <script src="modules/streamScreens.js"></script>
+  <script src="modules/layoutEditor.js"></script>
+  <script src="modules/themeConfig.js"></script>
+
+  <!-- Admin orchestrator (wires everything, defines BWO_ADMIN_UI, boots on DOMContentLoaded) -->
+  <script src="admin.js"></script>
+
+</body>
+</html>

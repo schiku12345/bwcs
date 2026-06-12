@@ -1,0 +1,432 @@
+/**
+ * overlay.css — OBS Browser Source Overlay Styles
+ *
+ * This file contains ALL styles for the streaming overlay.
+ * It is intentionally self-contained — no external CSS framework.
+ *
+ * SECTIONS:
+ *   1. CSS Custom Properties (theme variables)
+ *   2. Keyframe Animations
+ *   3. Logo Animation Classes
+ *   4. Text Effect Classes
+ *   5. Team Card Transition Classes
+ *   6. Global / Reset
+ *   7. Scanlines Effect
+ *   8. Scoreboard (top-right standings)
+ *   9. Info / Tournament Panel (top-left cards)
+ *  10. Main Panel (timer + team cards)
+ *  11. Team Cards
+ *  12. Cycle Progress Bar
+ *  13. Full-screen Overlay Screens (base)
+ *  14. Screen Backgrounds
+ *  15. Map Screen
+ *  16. Starting / BRB Logo Screens
+ *  17. Winner + Standings Summary Screen
+ *  18. Toasts
+ */
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 1. CSS CUSTOM PROPERTIES
+ *    These are overwritten by overlay.js when the theme changes.
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+:root {
+  --acc:   #4488ff;
+  --acc2:  #00e5ff;
+  --glow:  rgba(68, 136, 255, .22);
+  --b1:    rgba(68, 136, 255, .12);
+  --b2:    rgba(0, 229, 255, .06);
+  --panel: rgba(5, 8, 20, .93);
+  --bor:   rgba(255, 255, 255, .10);
+  --fd:    'Orbitron', monospace;
+}
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 2. KEYFRAME ANIMATIONS
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+/** Panel glow breathe — applied to scoreboard, main panel, etc. */
+@keyframes breathe {
+  0%, 100% { box-shadow: 0 0 16px var(--b1), inset 0 0 16px var(--b2); }
+  50%       { box-shadow: 0 0 36px var(--b1), 0 0 70px var(--glow), inset 0 0 28px var(--b2); }
+}
+
+/** Border pulse — subtle border brightness oscillation */
+@keyframes bpulse {
+  0%, 100% { border-color: rgba(255, 255, 255, .08); }
+  50%       { border-color: rgba(255, 255, 255, .24); }
+}
+
+/** Gentle opacity pulse — used on score and game number */
+@keyframes pulse {
+  0%, 100% { opacity: .7; }
+  50%       { opacity: 1; }
+}
+
+/** Accent text glow pulse */
+@keyframes glowPulse {
+  0%, 100% { text-shadow: 0 0 10px var(--acc), 0 0 28px var(--acc); }
+  50%       { text-shadow: 0 0 20px var(--acc), 0 0 60px var(--acc), 0 0 90px var(--acc2); }
+}
+
+/** Fade + translate up — used for map labels and winner entry */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/** Shimmer gradient sweep — used on the event name text */
+@keyframes shimmerText {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+
+/** Team card slide animations */
+@keyframes slideIn  { from { transform: translateX(110%); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes slideOut { from { transform: none; opacity: 1; } to { transform: translateX(-110%); opacity: 0; } }
+@keyframes fadeInC  { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes fadeOutC { from { opacity: 1; transform: none; } to { opacity: 0; transform: scale(1.04); } }
+@keyframes flipIn   { from { opacity: 0; transform: rotateY(-80deg); } to { opacity: 1; transform: none; } }
+@keyframes flipOut  { from { opacity: 1; transform: none; } to { opacity: 0; transform: rotateY(80deg); } }
+
+/** Logo animations */
+@keyframes logoPulse  { 0%, 100% { filter: drop-shadow(0 0 18px var(--acc)); } 50% { filter: drop-shadow(0 0 50px var(--acc)) drop-shadow(0 0 90px var(--acc2)); } }
+@keyframes logoFloat  { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
+@keyframes logoSpin   { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+@keyframes logoBounce { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-35px); } 60% { transform: translateY(-18px); } }
+@keyframes logoGlitch { 0%, 100% { transform: none; } 10% { transform: translate(-5px, 2px) skewX(-3deg); } 20% { transform: translate(5px, -2px); } }
+
+/** Winner entry animation */
+@keyframes winnerIn       { from { opacity: 0; transform: translateY(30px) scale(.95); } to { opacity: 1; transform: none; } }
+
+/** Standings row entry animation */
+@keyframes standingRowIn  { from { opacity: 0; transform: translateX(-24px); } to { opacity: 1; transform: none; } }
+
+/** Toast notification entry */
+@keyframes toastIn        { from { opacity: 0; transform: translateY(-12px) scale(.95); } to { opacity: 1; transform: none; } }
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 3. LOGO ANIMATION CLASSES
+ *    Applied via JS on the .logo-wrap element based on state.startingAnimation
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.anim-pulse  .logo-img { animation: logoPulse  2.5s ease-in-out infinite; }
+.anim-float  .logo-img { animation: logoFloat  3s   ease-in-out infinite, logoPulse 2.5s ease-in-out infinite; }
+.anim-spin   .logo-img { animation: logoSpin   8s   linear     infinite; }
+.anim-bounce .logo-img { animation: logoBounce 1.6s ease-in-out infinite; }
+.anim-glitch .logo-img { animation: logoGlitch 3s   ease-in-out infinite; }
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 4. TEXT EFFECT CLASSES
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.text-shimmer {
+  background: linear-gradient(90deg, var(--acc) 0%, var(--acc2) 40%, #fff 50%, var(--acc2) 60%, var(--acc) 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmerText 3s linear infinite;
+}
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 5. TEAM CARD TRANSITION CLASSES
+ *    Applied by overlay.js when cycling between team cards.
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.team-card.enter-slide { animation: slideIn  .5s cubic-bezier(.22, 1,  .36, 1)  both; }
+.team-card.exit-slide  { animation: slideOut .5s cubic-bezier(.55, 0,  1,   .45) both; }
+.team-card.enter-fade  { animation: fadeInC  .45s ease both; }
+.team-card.exit-fade   { animation: fadeOutC .45s ease both; }
+.team-card.enter-flip  { animation: flipIn   .5s cubic-bezier(.2,  1,  .6,  1)  both; }
+.team-card.exit-flip   { animation: flipOut  .5s cubic-bezier(.4,  0,  .8,  0)  both; }
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 6. GLOBAL / RESET
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent; /* OBS browser source transparency */
+  font-family: 'Rajdhani', sans-serif;
+  color: #fff;
+}
+
+
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 8. SCOREBOARD
+ *    Fixed top-right panel showing tournament standings.
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+#scoreboard {
+  position: fixed;
+  top: 1.5%; right: 1.5%;
+  background: var(--panel);
+  border: 1px solid var(--bor);
+  border-radius: 12px;
+  padding: 10px 14px;
+  z-index: 50;
+  animation: none;
+  box-shadow: 0 0 28px var(--b1), 0 0 52px var(--glow), inset 0 0 22px var(--b2);
+  border-color: rgba(255,255,255,.18);
+  transition: opacity .3s;
+}
+#scoreboard.hidden { opacity: 0; pointer-events: none; }
+
+.sb-title  { font-family: var(--fd); font-size: .5vw; letter-spacing: .2vw; color: rgba(255,255,255,.3); text-align: center; margin-bottom: 8px; }
+.sb-row    { display: flex; align-items: center; gap: 6px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,.04); }
+.sb-row:last-child { border-bottom: none; }
+.sb-dot    { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.sb-name   { font-size: .72vw; font-weight: 700; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 8vw; }
+.sb-score  { font-family: var(--fd); font-size: .8vw; font-weight: 900; text-align: right; min-width: 2vw; }
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 9. INFO / TOURNAMENT PANEL
+ *    Fixed top-left cycling info cards.
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+#tourn-panel {
+  position: fixed;
+  top: 1.5%; left: 1.5%;
+  background: var(--panel);
+  border: 1px solid var(--bor);
+  border-radius: 12px;
+  padding: 10px 14px;
+  z-index: 50;
+  animation: none;
+  box-shadow: 0 0 28px var(--b1), 0 0 52px var(--glow), inset 0 0 22px var(--b2);
+  border-color: rgba(255,255,255,.18);
+  transition: opacity .3s;
+}
+#tourn-panel.hidden { opacity: 0; pointer-events: none; }
+
+.tp-inner         { transition: opacity .35s; }
+.tp-inner.fading  { opacity: 0; }
+.tp-title         { font-family: var(--fd); font-size: .62vw; font-weight: 900; letter-spacing: .18vw; color: var(--acc2); margin-bottom: 4px; }
+.tp-body          { font-size: .72vw; font-weight: 600; color: rgba(255,255,255,.78); line-height: 1.45; }
+.tp-dots          { display: flex; gap: 4px; margin-top: 6px; justify-content: center; }
+.tp-dot           { width: 4px; height: 4px; border-radius: 50%; background: rgba(255,255,255,.18); }
+.tp-dot.on        { background: var(--acc); }
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 10. MAIN PANEL (timer + team section)
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+#main-panel {
+  position: fixed;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  transition: opacity .3s;
+  transform-origin: bottom left;
+}
+#main-panel.hidden { opacity: 0; pointer-events: none; }
+
+#timer-section {
+  background: var(--panel);
+  border: 1px solid var(--bor);
+  border-radius: 12px 12px 0 0;
+  border-bottom: 1px solid rgba(255,255,255,.05);
+  padding: 10px 16px 8px;
+  animation: none;
+  box-shadow: 0 0 28px var(--b1), 0 0 52px var(--glow), inset 0 0 22px var(--b2);
+  border-color: rgba(255,255,255,.18);
+}
+
+.timer-row    { display: flex; align-items: center; gap: 12px; }
+.game-info    { display: flex; flex-direction: column; flex-shrink: 0; }
+
+.game-num-lbl { font-family: var(--fd); font-size: .75vw; font-weight: 900; letter-spacing: .15vw; color: #fff; animation: pulse 3s ease-in-out infinite; }
+.game-num-lbl em { color: var(--acc); font-style: normal; }
+.stage-lbl    { font-family: var(--fd); font-size: .52vw; letter-spacing: .12vw; color: rgba(255,255,255,.45); }
+
+#timer-clock  { font-family: var(--fd); font-size: 2.8vw; font-weight: 900; letter-spacing: .2vw; color: var(--acc2); text-shadow: 0 0 18px currentColor; flex: 1; text-align: center; }
+
+.phase-info   { display: flex; flex-direction: column; align-items: center; gap: 2px; flex-shrink: 0; }
+#phase-icon   { font-size: 1.4vw; line-height: 1; }
+#phase-name   { font-family: var(--fd); font-size: .58vw; font-weight: 700; letter-spacing: .1vw; color: rgba(255,255,255,.7); white-space: nowrap; text-align: center; }
+
+.pbar         { width: 100%; height: 3px; background: rgba(255,255,255,.07); border-radius: 2px; margin-top: 7px; overflow: hidden; }
+#pbar-fill    { height: 100%; background: linear-gradient(90deg, var(--acc), var(--acc2)); border-radius: 2px; transition: width .8s linear; }
+
+#team-section {
+  background: var(--panel);
+  border: 1px solid var(--bor);
+  border-top: none;
+  border-radius: 0 0 12px 12px;
+  min-height: 130px;
+  position: relative;
+  overflow: hidden;
+  animation: none;
+  box-shadow: 0 0 28px var(--b1), 0 0 52px var(--glow), inset 0 0 22px var(--b2);
+  border-color: rgba(255,255,255,.18);
+}
+#team-stage { position: relative; width: 100%; min-height: 130px; }
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 11. TEAM CARDS
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.team-card         { position: relative; width: 100%; display: flex; align-items: center; gap: 14px; padding: 14px 18px 14px 14px; will-change: transform, opacity; }
+.team-card.exiting { position: absolute; top: 0; left: 0; }
+
+.tc-bar     { width: 5px; border-radius: 3px; align-self: stretch; flex-shrink: 0; min-height: 90px; }
+.tc-body    { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.tc-top     { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.tc-name    { font-family: var(--fd); font-weight: 900; text-transform: uppercase; font-size: clamp(11px, 1.1vw, 22px); opacity: .75; white-space: nowrap; }
+.tc-badge   { display: flex; align-items: center; gap: 3px; font-family: var(--fd); font-size: clamp(7px, .5vw, 11px); font-weight: 700; padding: 2px 7px; border-radius: 4px; flex-shrink: 0; white-space: nowrap; background: rgba(255, 60, 60, .18); color: #ff6060; }
+.tc-players { display: flex; gap: 12px; align-items: flex-start; }
+.tc-score   { font-family: var(--fd); font-size: clamp(32px, 3.8vw, 66px); font-weight: 900; line-height: 1; min-width: 60px; text-align: right; text-shadow: 0 0 22px currentColor; flex-shrink: 0; animation: pulse 3s ease-in-out infinite; }
+
+/* Player unit */
+.pu            { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; min-width: 0; }
+.pu-bust       { border-radius: 7px; overflow: hidden; position: relative; background: rgba(255,255,255,.04); border: 2px solid rgba(255,255,255,.12); flex-shrink: 0; }
+.pu-bust img   { width: 100%; height: 100%; object-fit: cover; display: block; transition: filter .3s; }
+.pu.dead .pu-bust img { filter: grayscale(1) brightness(.55); }
+.pu.dead .pu-bust     { border-color: rgba(200, 50, 50, .3); }
+.pu-name       { font-weight: 700; color: rgba(255,255,255,.88); width: 100%; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pu.dead .pu-name { opacity: .4; }
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 12. CYCLE PROGRESS BAR
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+#cprog      { height: 3px; background: rgba(255,255,255,.06); overflow: hidden; }
+#cprog-fill { height: 100%; width: 0%; transition: none; }
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 13. FULLSCREEN OVERLAY SCREENS (base classes)
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .7s;
+}
+.fullscreen.show { opacity: 1; pointer-events: auto; }
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 14. SCREEN BACKGROUNDS
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.screen-bg          { position: absolute; inset: 0; z-index: 0; background: #06080f; }
+.screen-bg video    { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .5; }
+.screen-bg-img      { position: absolute; inset: 0; background-size: cover; background-position: center; opacity: .5; }
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 15. MAP SCREEN
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+#map-screen  { display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; }
+.map-inner   { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; width: 100%; }
+.map-lbl     { font-family: var(--fd); font-size: .9vw; font-weight: 900; letter-spacing: .5vw; color: rgba(255,255,255,.32); text-transform: uppercase; margin-bottom: 2.5vh; animation: fadeUp .5s ease both; }
+
+#map-window  { width: 60vw; height: 38vh; border: 2px solid var(--acc); border-radius: 14px; overflow: hidden; box-shadow: 0 0 60px var(--glow); position: relative; animation: none; box-shadow: 0 0 28px var(--b1), 0 0 60px var(--glow); }
+#map-strip   { position: absolute; top: 0; left: 0; width: 100%; }
+.map-slide   { width: 100%; position: absolute; left: 0; }
+.map-slide img        { width: 100%; height: 100%; object-fit: cover; display: block; }
+.map-slide-name       { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(4,6,16,.94)); padding: 2vh 2vw; font-family: var(--fd); font-size: 2.4vw; font-weight: 900; color: #fff; text-shadow: 0 0 20px currentColor; }
+.map-no-img           { width: 100%; height: 100%; background: #111; display: flex; align-items: center; justify-content: center; font-size: 3vw; color: #333; }
+
+#map-result  { margin-top: 2.5vh; font-family: var(--fd); font-size: 1.7vw; font-weight: 900; letter-spacing: .4vw; color: var(--acc2); text-shadow: 0 0 24px currentColor; text-align: center; opacity: 0; transition: opacity .5s; }
+#map-result.show      { opacity: 1; animation: glowPulse 2s ease-in-out infinite; }
+#map-game-tag         { font-family: var(--fd); font-size: .78vw; letter-spacing: .35vw; color: rgba(255,255,255,.38); margin-top: .7vh; text-align: center; }
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 16. STARTING / BRB LOGO SCREENS
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.logo-screen { display: flex; flex-direction: column; overflow: hidden; }
+
+.ls-inner    {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 4vh 6vw;
+  gap: 0;
+}
+
+.logo-wrap           { display: flex; align-items: center; justify-content: center; max-width: 40vw; max-height: 32vh; margin-bottom: 3.5vh; }
+.logo-wrap .logo-img { max-width: 100%; max-height: 32vh; object-fit: contain; }
+
+.ls-event    { font-family: var(--fd); font-size: 1.9vw; font-weight: 900; letter-spacing: .5vw; text-transform: uppercase; color: var(--acc2); margin-bottom: 1.2vh; text-align: center; text-shadow: 0 0 28px var(--acc); }
+.ls-subtitle { font-family: var(--fd); font-size: .88vw; font-weight: 700; letter-spacing: .4vw; text-transform: uppercase; color: rgba(255,255,255,.48); margin-bottom: 2.5vh; text-align: center; }
+.ls-line     { width: 60%; height: 1px; background: linear-gradient(90deg, transparent, var(--acc), transparent); opacity: .3; margin: 1.8vh 0; }
+.ls-timer    { font-family: var(--fd); font-size: 4.2vw; font-weight: 900; letter-spacing: .3vw; color: var(--acc2); text-shadow: 0 0 28px var(--acc); animation: glowPulse 2s ease-in-out infinite; }
+.ls-timer-label { font-family: var(--fd); font-size: .58vw; letter-spacing: .3vw; color: rgba(255,255,255,.28); margin-top: .4vh; text-align: center; }
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 17. WINNER + STANDINGS SUMMARY SCREEN
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+/* Outer containers */
+#summary-screen { overflow: hidden; display: flex; flex-direction: column; }
+.sum-inner      { position: relative; z-index: 1; display: flex; flex-direction: column; height: 100%; }
+
+/* Winner panel */
+#winner-panel        { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4vh 6vw; opacity: 0; transition: opacity .5s; }
+#winner-panel.show   { opacity: 1; }
+
+.winner-label     { font-family: var(--fd); font-size: .9vw; font-weight: 900; letter-spacing: .6vw; text-transform: uppercase; color: rgba(255,255,255,.4); margin-bottom: 1.5vh; }
+.winner-team-name { font-family: var(--fd); font-size: 3.5vw; font-weight: 900; letter-spacing: .3vw; text-transform: uppercase; color: #fff; text-shadow: 0 0 40px var(--acc); margin-bottom: 3vh; text-align: center; animation: winnerIn .8s cubic-bezier(.22, 1, .36, 1) .2s both; }
+.winner-players   { display: flex; gap: 4vw; justify-content: center; margin-bottom: 2vh; }
+.winner-player    { display: flex; flex-direction: column; align-items: center; gap: 1vh; animation: winnerIn .8s cubic-bezier(.22, 1, .36, 1) both; }
+.winner-player:nth-child(2) { animation-delay: .15s; }
+.winner-skin      { border-radius: 10px; filter: drop-shadow(0 0 20px var(--acc)); }
+.winner-ign       { font-family: var(--fd); font-weight: 900; letter-spacing: .2vw; color: #fff; text-align: center; }
+
+/* Standings panel — full screen, top-left anchored */
+#standings-panel       { position: absolute; inset: 0; display: flex; flex-direction: column; padding: 3vh 5vw; opacity: 0; transition: opacity .6s; pointer-events: none; z-index: 2; }
+#standings-panel.show  { opacity: 1; pointer-events: auto; }
+
+.std-header   { margin-bottom: 1.8vh; flex-shrink: 0; }
+.std-title    { font-family: var(--fd); font-size: 6.5vw; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; color: #fff; line-height: .85; }
+.std-subtitle { display: inline-block; background: var(--acc); color: #fff; font-family: var(--fd); font-size: 1.2vw; font-weight: 900; letter-spacing: .25vw; text-transform: uppercase; padding: .3vh 1.4vw; border-radius: 4px; margin-top: .6vh; }
+
+.std-col-heads { display: grid; gap: .5vw; align-items: center; padding: .3vh 1.2vw; margin-bottom: .5vh; border-bottom: 1px solid rgba(255,255,255,.14); }
+.std-col-lbl   { font-family: var(--fd); font-size: .6vw; letter-spacing: .15vw; color: rgba(255,255,255,.38); text-align: right; text-transform: uppercase; }
+.std-col-lbl.left { text-align: left; }
+
+.std-rows { display: flex; flex-direction: column; flex: 1; gap: .5vh; }
+.std-row  { display: grid; gap: .5vw; align-items: center; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.08); border-radius: 10px; padding: .7vh 1.2vw; animation: standingRowIn .5s ease both; }
+
+.std-row.top1 { border-color: rgba(255, 224, 51, .4);  background: rgba(255, 224, 51, .07); }
+.std-row.top2 { border-color: rgba(200, 200, 200, .28); }
+.std-row.top3 { border-color: rgba(205, 127, 50, .3);  }
+
+.std-rank          { font-family: var(--fd); font-weight: 900; color: rgba(255,255,255,.5); text-align: center; }
+.std-rank.r1       { color: #ffe033; }
+.std-rank.r2       { color: #bbb; }
+.std-rank.r3       { color: #cd7f32; }
+.std-team-name     { font-family: var(--fd); font-weight: 900; letter-spacing: .06vw; text-transform: uppercase; }
+.std-pts           { font-family: var(--fd); font-weight: 900; text-align: right; color: #fff; }
+.std-game-pts      { font-family: var(--fd); font-weight: 700; text-align: right; color: var(--acc2); }
+.std-delta         { font-family: var(--fd); font-weight: 900; text-align: right; }
+.std-delta.up      { color: #44ff88; }
+.std-delta.down    { color: #ff4a4a; }
+.std-delta.same    { color: rgba(255,255,255,.3); }
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 18. TOASTS
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+#toasts { position: fixed; top: 7%; left: 50%; transform: translateX(-50%); z-index: 200; display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
+.toast  { background: rgba(4,6,18,.92); border: 1px solid rgba(255,255,255,.14); border-radius: 7px; padding: 7px 18px; font-family: var(--fd); font-size: .65vw; letter-spacing: .15vw; white-space: nowrap; animation: toastIn .35s both; }

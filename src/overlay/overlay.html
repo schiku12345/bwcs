@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<!--
+  overlay.html — OBS Browser Source Overlay
+  ==========================================
+  This file is the HTML skeleton for the streaming overlay.
+  It contains ONLY structure — no inline scripts, no inline styles.
+
+  All logic is in:  src/overlay/overlay.js
+  All styles are in: src/overlay/overlay.css
+
+  LOAD ORDER (scripts at bottom of <body>):
+    1. config/config.js        — Physical config file (maps, icons, etc.)
+    2. src/shared/constants.js — All hardcoded values
+    3. src/shared/utils.js     — Pure helper functions
+    4. src/shared/state.js     — State manager (BWO_STATE)
+    5. src/overlay/overlay.js  — All overlay logic
+
+  HOW TO USE IN OBS:
+    Add as a Browser Source with width=1920, height=1080.
+    Point it at:  https://your-host/src/overlay/overlay.html
+    Or locally:   file:///path/to/bedwars-overlay/src/overlay/overlay.html
+    (Note: BroadcastChannel requires same origin — use a local server.)
+
+  SCREEN MODES (controlled by the admin panel):
+    starting  — waiting for game to begin
+    game      — live game with timer + team cards
+    summary   — winner screen followed by standings table
+    map       — map reveal animation
+    brb       — be right back screen
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=1920"/>
+  <title>Bedwars Overlay</title>
+
+  <!-- Web fonts -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;600;700&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- All overlay styles -->
+  <link rel="stylesheet" href="overlay.css"/>
+</head>
+<body>
+
+  <!-- ──────────────────────────────────────────────────────────────
+       SCANLINES EFFECT
+       Subtle CRT-style scanline texture layered over everything.
+       pointer-events:none so it never blocks clicks.
+  ────────────────────────────────────────────────────────────────── -->
+  
+
+  <!-- ──────────────────────────────────────────────────────────────
+       SCOREBOARD
+       Fixed top-right panel. Shows live tournament standings.
+       Populated by overlay.js → _renderScoreboard()
+  ────────────────────────────────────────────────────────────────── -->
+  <div id="scoreboard" aria-label="Tournament standings">
+    <div class="sb-title">Standings</div>
+    <div id="sb-rows"></div>
+  </div>
+
+
+  <!-- ──────────────────────────────────────────────────────────────
+       INFO / TOURNAMENT PANEL
+       Fixed top-left panel. Cycles through info cards.
+       Populated by overlay.js → _runInfoCardCycle()
+  ────────────────────────────────────────────────────────────────── -->
+  <div id="tourn-panel" aria-label="Event info">
+    <div class="tp-inner" id="tp-inner">
+      <div class="tp-title" id="tp-title"></div>
+      <div class="tp-body"  id="tp-body"></div>
+    </div>
+    <div class="tp-dots" id="tp-dots"></div>
+  </div>
+
+
+  <!-- ──────────────────────────────────────────────────────────────
+       MAIN PANEL
+       Contains the game timer (top half) and cycling team cards
+       (bottom half). Position + size controlled by layout editor.
+       Populated by overlay.js (timer RAF + _cycleTo)
+  ────────────────────────────────────────────────────────────────── -->
+  <div id="main-panel" aria-label="Game timer and team display">
+
+    <!-- Timer section -->
+    <div id="timer-section">
+      <div class="timer-row">
+
+        <!-- Game number + stage label -->
+        <div class="game-info">
+          <div class="game-num-lbl">
+            GAME <em id="gnum">1</em>
+            <span id="map-tag" style="opacity:.38;font-size:.6em;margin-left:.4em;font-weight:400;"></span>
+          </div>
+          <div class="stage-lbl" id="stage-lbl"></div>
+        </div>
+
+        <!-- Countdown clock — shows "PREGAME" until timer starts -->
+        <div id="timer-clock">PREGAME</div>
+
+        <!-- Phase icon + name (Diamond II, Emerald II, etc.) -->
+        <div class="phase-info">
+          <div id="phase-icon">⏸</div>
+          <div id="phase-name">Pregame</div>
+        </div>
+
+      </div>
+      <!-- Phase progress bar (depletes as phase time runs out) -->
+      <div class="pbar">
+        <div id="pbar-fill" style="width:100%"></div>
+      </div>
+    </div>
+
+    <!-- Team cards section -->
+    <div id="team-section">
+      <!-- Team cards are dynamically inserted here by overlay.js -->
+      <div id="team-stage"></div>
+      <!-- Cycle progress bar (shows how long until next team) -->
+      <div id="cprog">
+        <div id="cprog-fill"></div>
+      </div>
+    </div>
+
+  </div><!-- /main-panel -->
+
+
+  <!-- ──────────────────────────────────────────────────────────────
+       TOAST NOTIFICATIONS
+       Temporary messages shown centre-top.
+       Managed by overlay.js (currently unused in read-only overlay,
+       reserved for future use).
+  ────────────────────────────────────────────────────────────────── -->
+  <div id="toasts" aria-live="polite"></div>
+
+
+  <!-- ──────────────────────────────────────────────────────────────
+       MAP REVEAL SCREEN
+       Full-screen overlay shown when a map is being revealed.
+       The slot-machine animation runs inside #map-window.
+  ────────────────────────────────────────────────────────────────── -->
+  <div id="map-screen" class="fullscreen" aria-label="Map selection">
+    <div class="screen-bg" id="map-bg">
+      <video id="map-video" autoplay muted loop playsinline></video>
+      <div class="screen-bg-img" id="map-bg-img"></div>
+    </div>
+    <div class="map-inner">
+      <div class="map-lbl">Map Selection</div>
+      <div id="map-window">
+        <div id="map-strip"></div>
+      </div>
+      <div id="map-result"></div>
+      <div id="map-game-tag"></div>
+    </div>
+  </div>
+
+
+  <!-- ──────────────────────────────────────────────────────────────
+       STARTING GAME SCREEN
+       Shown while waiting for the game to start.
+       Displays logo, event name, subtitle, team cycling area, timer.
+  ────────────────────────────────────────────────────────────────── -->
+  <div id="starting-screen" class="fullscreen logo-screen" aria-label="Starting screen">
+    <div class="screen-bg" id="starting-bg">
+      <video id="starting-video" autoplay muted loop playsinline></video>
+      <div class="screen-bg-img" id="starting-bg-img"></div>
+    </div>
+    <div class="ls-inner">
+
+      <!-- Logo (hidden when no URL is configured) -->
+      <div class="logo-wrap anim-pulse" id="starting-logo-wrap">
+        <img class="logo-img" id="starting-logo" src="" alt="Event logo" style="display:none"/>
+      </div>
+
+      <!-- Event name — uses shimmer animation by default -->
+      <div class="ls-event text-shimmer" id="starting-event"></div>
+
+      <!-- Subtitle ("Starting Game" by default) -->
+      <div class="ls-subtitle" id="starting-subtitle">Starting Game</div>
+
+      <div class="ls-line"></div>
+
+      <!-- Team cycling area — overlay.js cycles through team cards here -->
+      <div
+        id="starting-team-stage"
+        style="width:100%;max-width:700px;min-height:140px;position:relative;overflow:hidden;margin-bottom:1vh;"
+        aria-label="Participating teams"
+      ></div>
+
+      <div class="ls-line"></div>
+
+      <!-- Countdown / countup timer -->
+      <div class="ls-timer" id="starting-timer">0:00</div>
+      <div class="ls-timer-label">TIME ELAPSED</div>
+
+    </div>
+  </div>
+
+
+  <!-- ──────────────────────────────────────────────────────────────
+       BRB (BE RIGHT BACK) SCREEN
+  ────────────────────────────────────────────────────────────────── -->
+  <div id="brb-screen" class="fullscreen logo-screen" aria-label="Be right back">
+    <div class="screen-bg" id="brb-bg">
+      <video id="brb-video" autoplay muted loop playsinline></video>
+      <div class="screen-bg-img" id="brb-bg-img"></div>
+    </div>
+    <div class="ls-inner">
+      <div class="logo-wrap anim-float" id="brb-logo-wrap">
+        <img class="logo-img" id="brb-logo" src="" alt="Event logo" style="display:none"/>
+      </div>
+      <div class="ls-event" id="brb-event"></div>
+      <div class="ls-subtitle" id="brb-subtitle">Be Right Back</div>
+    </div>
+  </div>
+
+
+  <!-- ──────────────────────────────────────────────────────────────
+       WINNER + STANDINGS SUMMARY SCREEN
+       Phase 1 (6s): Winner panel — full-body skins + team name
+       Phase 2:      Standings panel — full-screen leaderboard
+  ────────────────────────────────────────────────────────────────── -->
+  <div id="summary-screen" class="fullscreen" aria-label="Game results">
+    <div class="screen-bg" id="sum-bg">
+      <video id="sum-video" autoplay muted loop playsinline></video>
+      <div class="screen-bg-img" id="sum-bg-img"></div>
+    </div>
+
+    <div class="sum-inner">
+
+      <!-- WINNER PANEL (Phase 1) -->
+      <div id="winner-panel" aria-label="Winner">
+        <div class="winner-label">🏆 Game Winner</div>
+        <div class="winner-team-name" id="winner-team-name"></div>
+        <div class="winner-players"   id="winner-players"></div>
+      </div>
+
+      <!-- STANDINGS PANEL (Phase 2) -->
+      <div id="standings-panel" aria-label="Tournament standings">
+        <div class="std-header">
+          <div class="std-title">STANDINGS</div>
+          <div class="std-subtitle" id="std-subtitle">GLOBAL CHAMPIONSHIP</div>
+        </div>
+        <!-- Column headers injected by overlay.js -->
+        <div class="std-col-heads" id="std-col-heads"></div>
+        <!-- Standings rows injected by overlay.js -->
+        <div class="std-rows" id="std-rows"></div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ──────────────────────────────────────────────────────────────
+       SCRIPTS
+       Load order is critical — each file depends on the ones above.
+  ────────────────────────────────────────────────────────────────── -->
+
+  <!-- Physical config (maps, icons, backgrounds — edit config/config.js) -->
+  <script src="../../config/config.js"></script>
+
+  <!-- Shared modules -->
+  <script src="../shared/constants.js"></script>
+  <script src="../shared/utils.js"></script>
+  <script src="../shared/firebase-sync.js"></script>
+  <script src="../shared/state.js"></script>
+
+  <!-- Overlay logic -->
+  <script src="overlay.js"></script>
+
+</body>
+</html>

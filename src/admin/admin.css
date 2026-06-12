@@ -1,0 +1,1243 @@
+/**
+ * admin.css — Admin Panel Styles
+ *
+ * All visual styling for the Bedwars Overlay admin panel.
+ * No logic, no inline styles — everything belongs here.
+ *
+ * SECTIONS:
+ *   1.  CSS Custom Properties
+ *   2.  Reset & Base
+ *   3.  App Layout (sidebar + main grid)
+ *   4.  Sidebar Navigation
+ *   5.  Sidebar Toggle Tab
+ *   6.  Main Content Area
+ *   7.  Page Switching
+ *   8.  Headings
+ *   9.  Cards
+ *  10.  Form Controls (inputs, selects, textareas, labels)
+ *  11.  Grid helpers
+ *  12.  Buttons
+ *  13.  Toggle Switches
+ *  14.  Overlay Mode Buttons (STARTING / GAME / WINNER / MAP / BRB)
+ *  15.  Quick Actions Panel
+ *  16.  Team Cards (admin)
+ *  17.  Slot Rows (game setup)
+ *  18.  Stats Table
+ *  19.  Point Rule Rows
+ *  20.  Standings / History Preview
+ *  21.  Info Cards
+ *  22.  Map Pool Cards
+ *  23.  History Edit Rows
+ *  24.  Layout Editor Canvas
+ *  25.  Colour Preset Grid
+ *  26.  Modals
+ *  27.  Notifications (toast)
+ *  28.  Drop Zones
+ *  29.  Misc Utilities
+ *  30.  Live Sync Indicator
+ */
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 1. CSS CUSTOM PROPERTIES
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+:root {
+  --bg:    #060810;
+  --surf:  #0b0e18;
+  --panel: #101420;
+  --bor:   rgba(255, 255, 255, .08);
+  --acc:   #4488ff;
+  --acc2:  #00e5ff;
+  --grn:   #44ff88;
+  --red:   #ff4a4a;
+  --ylw:   #ffe033;
+  --org:   #ff9933;
+  --txt:   rgba(255, 255, 255, .85);
+  --mut:   rgba(255, 255, 255, .32);
+  --fd:    'Orbitron', monospace;
+  --fb:    'Rajdhani', sans-serif;
+}
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 2. RESET & BASE
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  background:  var(--bg);
+  color:       var(--txt);
+  font-family: var(--fb);
+  min-height:  100vh;
+}
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 3. APP LAYOUT
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+#app {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  min-height: 100vh;
+}
+
+/* Collapsed sidebar state */
+#app.sb-off {
+  grid-template-columns: 0px 1fr;
+}
+#app.sb-off #sidebar {
+  width: 0;
+  overflow: hidden;
+}
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 4. SIDEBAR NAVIGATION
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+#sidebar {
+  background:    var(--surf);
+  border-right:  1px solid var(--bor);
+  display:       flex;
+  flex-direction: column;
+  position:      sticky;
+  top:           0;
+  height:        100vh;
+  overflow-y:    auto;
+  overflow-x:    hidden;
+  width:         200px;
+}
+
+.sl-logo {
+  padding:       12px;
+  border-bottom: 1px solid var(--bor);
+}
+.sl-logo h1 {
+  font-family:   var(--fd);
+  font-size:     9px;
+  font-weight:   900;
+  color:         var(--acc2);
+  letter-spacing: 2px;
+  line-height:   1.4;
+  text-shadow:   0 0 12px rgba(0, 229, 255, .4);
+}
+.sl-logo p {
+  font-size: 8px;
+  color:     var(--mut);
+  margin-top: 2px;
+}
+
+/* Section label inside sidebar */
+.sl-sec {
+  padding:        8px 12px 2px;
+  font-size:      8px;
+  font-weight:    700;
+  letter-spacing: 2px;
+  color:          var(--mut);
+  text-transform: uppercase;
+}
+
+/* Nav item */
+.ni {
+  display:         flex;
+  align-items:     center;
+  gap:             8px;
+  padding:         7px 12px;
+  font-size:       11px;
+  font-weight:     600;
+  color:           var(--mut);
+  cursor:          pointer;
+  border-left:     2px solid transparent;
+  transition:      all .1s;
+  user-select:     none;
+  white-space:     nowrap;
+}
+.ni:hover   { background: rgba(255, 255, 255, .03); color: var(--txt); }
+.ni.active  {
+  border-left-color: var(--acc);
+  color:             var(--acc);
+  background:        linear-gradient(90deg, rgba(68, 136, 255, .1), transparent);
+}
+.ni svg { flex-shrink: 0; width: 12px; height: 12px; }
+
+/* Sidebar footer */
+.sl-foot {
+  margin-top:    auto;
+  padding:       10px 12px;
+  border-top:    1px solid var(--bor);
+}
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 5. SIDEBAR TOGGLE TAB
+ * Positioned by admin.js positionTab() at the right edge of the sidebar.
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+#sb-tab {
+  position:        fixed;
+  top:             50%;
+  transform:       translateY(-50%);
+  width:           14px;
+  height:          60px;
+  background:      var(--surf);
+  border:          1px solid var(--bor);
+  border-left:     none;
+  border-radius:   0 6px 6px 0;
+  cursor:          pointer;
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  font-size:       11px;
+  color:           var(--mut);
+  z-index:         9000;
+  user-select:     none;
+  transition:      background .12s;
+}
+#sb-tab:hover { background: rgba(255, 255, 255, .08); color: var(--txt); }
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 6. MAIN CONTENT AREA
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+#main-content {
+  padding:    16px;
+  overflow-y: auto;
+}
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 7. PAGE SWITCHING
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.pg        { display: none; }
+.pg.active { display: block; }
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 8. HEADINGS
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.h1 {
+  font-family:    var(--fd);
+  font-size:      8px;
+  font-weight:    900;
+  letter-spacing: 2px;
+  color:          var(--mut);
+  text-transform: uppercase;
+  margin-bottom:  8px;
+  padding-bottom: 4px;
+  border-bottom:  1px solid var(--bor);
+  margin-top:     14px;
+}
+.h1:first-child { margin-top: 0; }
+
+/* Dashboard-specific section label — replaces .h1 on the dash page */
+.dash-section-label {
+  font-family:    var(--fd);
+  font-size:      8px;
+  font-weight:    700;
+  letter-spacing: 2.5px;
+  color:          var(--mut);
+  text-transform: uppercase;
+  margin:         14px 0 6px;
+}
+.dash-section-label:first-child { margin-top: 4px; }
+
+/* Dashboard header row */
+.dash-header {
+  display:        flex;
+  align-items:    center;
+  justify-content: space-between;
+  margin-bottom:  14px;
+  padding-bottom: 10px;
+  border-bottom:  1px solid var(--bor);
+}
+.dash-header-left { display: flex; align-items: center; gap: 8px; }
+
+.dash-game-badge {
+  font-family:    var(--fd);
+  font-size:      11px;
+  font-weight:    900;
+  letter-spacing: 2px;
+  color:          var(--txt);
+}
+.dash-stage-badge {
+  font-family:    var(--fb);
+  font-size:      10px;
+  font-weight:    600;
+  color:          var(--mut);
+  letter-spacing: .5px;
+}
+.dash-stage-badge:empty { display: none; }
+
+/* Timer row inside quick actions */
+.dash-timer-row { background: rgba(255,255,255,.03); border-radius: 6px; padding: 6px 10px; }
+.dash-timer-val {
+  font-family: var(--fd);
+  font-size:   18px;
+  font-weight: 900;
+  color:       var(--ylw);
+  flex:        1;
+}
+
+/* Map name inside quick actions */
+.dash-map-name {
+  font-size:   11px;
+  color:       var(--acc2);
+  flex:        1;
+  font-weight: 700;
+}
+
+/* OBS URL area */
+.dash-obs-label {
+  font-size:     10px;
+  font-weight:   700;
+  color:         var(--mut);
+  margin-bottom: 5px;
+  letter-spacing: .5px;
+}
+.dash-obs-input {
+  flex:        1;
+  background:  rgba(255,255,255,.04);
+  border:      1px solid var(--bor);
+  border-radius: 5px;
+  padding:     6px 9px;
+  color:       var(--mut);
+  font-family: monospace;
+  font-size:   10px;
+  outline:     none;
+}
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 9. CARDS
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.card {
+  background:    var(--panel);
+  border:        1px solid var(--bor);
+  border-radius: 10px;
+  padding:       13px;
+  margin-bottom: 10px;
+}
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 10. FORM CONTROLS
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.f             { margin-bottom: 9px; }
+.f:last-child  { margin-bottom: 0; }
+
+.f label {
+  display:        block;
+  font-size:      9px;
+  font-weight:    700;
+  letter-spacing: 1px;
+  color:          var(--mut);
+  text-transform: uppercase;
+  margin-bottom:  3px;
+}
+
+/* Text inputs and textareas */
+.f input[type=text],
+.f input[type=number],
+.f input[type=url],
+.f textarea {
+  width:        100%;
+  background:   rgba(255, 255, 255, .06);
+  border:       1px solid var(--bor);
+  border-radius: 5px;
+  color:        var(--txt);
+  font-family:  var(--fb);
+  font-size:    12px;
+  font-weight:  600;
+  padding:      6px 9px;
+  outline:      none;
+  transition:   border-color .1s;
+  resize:       vertical;
+}
+.f input:focus, .f textarea:focus { border-color: var(--acc); }
+.f input::placeholder, .f textarea::placeholder { color: var(--mut); }
+
+/* Select dropdowns — always black text on white for readability */
+.f select,
+select {
+  background:    #fff;
+  color:         #111;
+  border:        1px solid var(--bor);
+  border-radius: 5px;
+  font-family:   var(--fb);
+  font-size:     12px;
+  font-weight:   600;
+  padding:       6px 9px;
+  outline:       none;
+  cursor:        pointer;
+  width:         100%;
+}
+
+/* Helper / description text */
+.help {
+  font-size:   10px;
+  color:       var(--mut);
+  line-height: 1.5;
+}
+
+/* Monospace code spans (used in drop zone help text) */
+code {
+  background:    rgba(255, 255, 255, .07);
+  border-radius: 3px;
+  padding:       1px 4px;
+  font-family:   monospace;
+  font-size:     9px;
+  color:         var(--acc2);
+}
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 11. GRID HELPERS
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 12. BUTTONS
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.btn {
+  display:     inline-flex;
+  align-items: center;
+  gap:         5px;
+  padding:     6px 12px;
+  border-radius: 5px;
+  font-family: var(--fb);
+  font-size:   11px;
+  font-weight: 700;
+  cursor:      pointer;
+  border:      none;
+  transition:  all .1s;
+  user-select: none;
+}
+
+/* Primary — accent blue */
+.btn-p  { background: var(--acc); color: #fff; }
+.btn-p:hover { background: #5599ff; transform: translateY(-1px); }
+
+/* Destructive — red */
+.btn-d  { background: rgba(255,74,74,.1); color: var(--red); border: 1px solid rgba(255,74,74,.2); }
+.btn-d:hover { background: rgba(255,74,74,.18); }
+
+/* Ghost / neutral */
+.btn-g  { background: rgba(255,255,255,.06); color: var(--txt); border: 1px solid var(--bor); }
+.btn-g:hover { background: rgba(255,255,255,.10); }
+
+/* Green — start / confirm actions */
+.btn-gr { background: rgba(68,255,136,.1); color: var(--grn); border: 1px solid rgba(68,255,136,.2); }
+.btn-gr:hover { background: rgba(68,255,136,.18); }
+
+/* Purple — special actions (map reveal) */
+.btn-pu { background: rgba(170,68,255,.1); color: #cc88ff; border: 1px solid rgba(170,68,255,.2); }
+.btn-pu:hover { background: rgba(170,68,255,.18); }
+
+/* Orange — finish game */
+.btn-or { background: rgba(255,153,51,.1); color: var(--org); border: 1px solid rgba(255,153,51,.2); }
+.btn-or:hover { background: rgba(255,153,51,.18); }
+
+/* Size modifiers */
+.btn-sm { padding: 4px 9px; font-size: 10px; }
+.btn-ic { padding: 5px; }
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 13. TOGGLE SWITCHES
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.tog {
+  display:         flex;
+  justify-content: space-between;
+  align-items:     center;
+  padding:         6px 0;
+  border-bottom:   1px solid var(--bor);
+}
+.tog:last-child { border-bottom: none; }
+.tog-lbl { font-size: 11px; font-weight: 600; }
+
+.sw {
+  position:   relative;
+  width:      34px;
+  height:     18px;
+  cursor:     pointer;
+  flex-shrink: 0;
+}
+.sw input { display: none; }
+.sw .trk {
+  position:      absolute;
+  inset:         0;
+  background:    rgba(255, 255, 255, .1);
+  border-radius: 10px;
+  transition:    background .1s;
+}
+.sw .thm {
+  position:      absolute;
+  top:           2px;
+  left:          2px;
+  width:         14px;
+  height:        14px;
+  border-radius: 50%;
+  background:    rgba(255, 255, 255, .3);
+  transition:    all .1s;
+}
+.sw input:checked ~ .trk { background: var(--acc); }
+.sw input:checked ~ .thm { left: 18px; background: #fff; }
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 14. OVERLAY MODE BUTTONS
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.ovm-grid {
+  display:       grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap:           6px;
+  margin-bottom: 12px;
+}
+.ovm-btn {
+  padding:        12px 4px;
+  border-radius:  7px;
+  border:         2px solid var(--bor);
+  background:     rgba(255, 255, 255, .03);
+  text-align:     center;
+  cursor:         pointer;
+  transition:     all .1s;
+  font-family:    var(--fd);
+  font-size:      8px;
+  font-weight:    700;
+  letter-spacing: 1px;
+  color:          var(--mut);
+}
+.ovm-btn:hover { border-color: rgba(255, 255, 255, .15); }
+.ovm-btn.active {
+  border-color: var(--acc);
+  color:        var(--acc);
+  background:   rgba(68, 136, 255, .08);
+}
+.ovm-icon { font-size: 22px; display: block; margin-bottom: 4px; }
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 15. QUICK ACTIONS PANEL
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+#qa-panel {
+  background:    var(--panel);
+  border:        1px solid var(--bor);
+  border-radius: 10px;
+  padding:       13px;
+  margin-bottom: 10px;
+}
+.qa-section        { display: none; }
+.qa-section.active { display: block; }
+
+.qa-row {
+  display:       flex;
+  align-items:   center;
+  gap:           7px;
+  margin-bottom: 7px;
+  flex-wrap:     wrap;
+}
+.qa-row:last-child { margin-bottom: 0; }
+
+.qa-lbl {
+  font-size:      9px;
+  font-weight:    700;
+  letter-spacing: 1px;
+  color:          var(--mut);
+  text-transform: uppercase;
+  white-space:    nowrap;
+  min-width:      52px;
+}
+
+.qa-inp {
+  flex:          1;
+  min-width:     80px;
+  background:    rgba(255, 255, 255, .06);
+  border:        1px solid var(--bor);
+  border-radius: 4px;
+  color:         var(--txt);
+  font-family:   var(--fb);
+  font-size:     12px;
+  font-weight:   600;
+  padding:       5px 8px;
+  outline:       none;
+}
+.qa-inp:focus  { border-color: var(--acc); }
+.qa-inp.sel    { background: #fff; color: #111; }
+
+.st-timer-disp {
+  font-family:    var(--fd);
+  font-size:      22px;
+  font-weight:    900;
+  color:          var(--acc2);
+  text-align:     center;
+  letter-spacing: 3px;
+}
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 16. TEAM CARDS (admin)
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.team-card-adm {
+  background:    rgba(255, 255, 255, .04);
+  border:        1px solid var(--bor);
+  border-radius: 9px;
+  padding:       11px;
+  margin-bottom: 8px;
+}
+.ntc-hdr {
+  display:       flex;
+  align-items:   center;
+  gap:           7px;
+  margin-bottom: 8px;
+}
+.pgrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+.pi-wrap {
+  display:     flex;
+  align-items: center;
+  gap:         5px;
+}
+.pi-av {
+  width:            22px;
+  height:           22px;
+  border-radius:    3px;
+  background:       rgba(255, 255, 255, .05);
+  border:           1px solid var(--bor);
+  flex-shrink:      0;
+  object-fit:       cover;
+  image-rendering:  pixelated;
+}
+.pi-wrap input {
+  flex:          1;
+  background:    rgba(255, 255, 255, .05);
+  border:        1px solid var(--bor);
+  border-radius: 4px;
+  color:         var(--txt);
+  font-family:   var(--fb);
+  font-size:     11px;
+  font-weight:   600;
+  padding:       4px 7px;
+  outline:       none;
+}
+.pi-wrap input:focus { border-color: var(--acc); }
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 17. SLOT ROWS (game setup)
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.slot-row {
+  display:      flex;
+  align-items:  center;
+  gap:          8px;
+  padding:      8px 0;
+  border-bottom: 1px solid var(--bor);
+}
+.slot-row:last-child { border-bottom: none; }
+
+.slot-dot {
+  width:        12px;
+  height:       12px;
+  border-radius: 50%;
+  flex-shrink:  0;
+}
+
+.slot-select {
+  flex:          1;
+  background:    #fff;
+  border:        1px solid var(--bor);
+  border-radius: 4px;
+  color:         #111;
+  font-family:   var(--fb);
+  font-size:     11px;
+  padding:       5px 8px;
+  outline:       none;
+}
+
+/* Bed / elim status badges */
+.tbadge {
+  font-size:      7px;
+  font-weight:    700;
+  letter-spacing: 1px;
+  padding:        2px 5px;
+  border-radius:  3px;
+  cursor:         pointer;
+  border:         none;
+  font-family:    var(--fb);
+  transition:     all .1s;
+  text-transform: uppercase;
+}
+.tbadge.alive   { background: rgba(68,255,136,.1);  color: var(--grn); }
+.tbadge.dead-t  { background: rgba(255,74,74,.1);   color: var(--red); }
+.tbadge.bed-ok  { background: rgba(68,136,255,.1);  color: var(--acc); }
+.tbadge.bed-gone{ background: rgba(255,153,51,.1);  color: var(--org); }
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 18. STATS TABLE
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.pstat-hdr,
+.pstat-row { display: grid; grid-template-columns: 1fr 50px 50px 50px 50px 55px; gap: 3px; align-items: center; }
+.pstat-hdr { padding: 3px 0; margin-bottom: 4px; }
+.pstat-row { padding: 4px 0; border-bottom: 1px solid var(--bor); }
+.pstat-row:last-child { border-bottom: none; }
+
+.pstat-lbl {
+  font-size:      8px;
+  font-weight:    700;
+  letter-spacing: 1px;
+  color:          var(--mut);
+  text-align:     center;
+  text-transform: uppercase;
+}
+.pstat-name {
+  font-size:      11px;
+  font-weight:    700;
+  white-space:    nowrap;
+  overflow:       hidden;
+  text-overflow:  ellipsis;
+}
+.pstat-inp {
+  width:         100%;
+  background:    rgba(255, 255, 255, .06);
+  border:        1px solid var(--bor);
+  border-radius: 3px;
+  color:         var(--txt);
+  font-family:   var(--fd);
+  font-size:     11px;
+  font-weight:   700;
+  padding:       3px;
+  outline:       none;
+  text-align:    center;
+}
+.pstat-inp:focus { border-color: var(--acc); }
+.pstat-pts-ro {
+  font-family: var(--fd);
+  font-size:   11px;
+  font-weight: 700;
+  text-align:  center;
+  color:       var(--acc2);
+  opacity:     .8;
+}
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 19. POINT RULE ROWS
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.pr-row {
+  display:      flex;
+  align-items:  center;
+  gap:          10px;
+  padding:      5px 0;
+  border-bottom: 1px solid var(--bor);
+}
+.pr-row:last-child { border-bottom: none; }
+.pr-label { flex: 1; font-size: 11px; font-weight: 600; }
+.pr-sub   { font-size: 9px; color: var(--mut); }
+.pr-inp {
+  width:         56px;
+  background:    rgba(255, 255, 255, .06);
+  border:        1px solid var(--bor);
+  border-radius: 4px;
+  color:         var(--txt);
+  font-family:   var(--fd);
+  font-size:     13px;
+  font-weight:   900;
+  padding:       5px;
+  outline:       none;
+  text-align:    center;
+}
+.pr-inp:focus { border-color: var(--acc); }
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 20. STANDINGS / HISTORY PREVIEW
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.std-prev-row {
+  display:      flex;
+  align-items:  center;
+  gap:          8px;
+  padding:      4px 0;
+  border-bottom: 1px solid var(--bor);
+  font-size:    11px;
+}
+.std-prev-row:last-child { border-bottom: none; }
+
+/* History row — clickable */
+.hist-row {
+  display:       flex;
+  align-items:   center;
+  gap:           8px;
+  padding:       7px 8px;
+  border-bottom: 1px solid var(--bor);
+  cursor:        pointer;
+  border-radius: 5px;
+  transition:    background .1s;
+}
+.hist-row:hover        { background: rgba(255, 255, 255, .04); }
+.hist-row:last-child   { border-bottom: none; }
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 21. INFO CARDS
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.tc-card {
+  background:    rgba(255, 255, 255, .04);
+  border:        1px solid var(--bor);
+  border-radius: 7px;
+  padding:       10px;
+  margin-bottom: 7px;
+}
+.tc-hdr {
+  display:       flex;
+  align-items:   center;
+  gap:           7px;
+  margin-bottom: 7px;
+}
+/* Inputs inside info cards use the standard .f input styles */
+.tc-card input,
+.tc-card textarea {
+  width:         100%;
+  background:    rgba(255, 255, 255, .05);
+  border:        1px solid var(--bor);
+  border-radius: 4px;
+  color:         var(--txt);
+  font-family:   var(--fb);
+  font-size:     12px;
+  font-weight:   600;
+  padding:       5px 8px;
+  outline:       none;
+  resize:        vertical;
+}
+.tc-card input:focus,
+.tc-card textarea:focus { border-color: var(--acc); }
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 22. MAP POOL CARDS
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.mp-card {
+  background:    rgba(255, 255, 255, .04);
+  border:        1px solid var(--bor);
+  border-radius: 7px;
+  padding:       8px;
+  margin-bottom: 7px;
+  display:       flex;
+  align-items:   flex-start;
+  gap:           8px;
+}
+.mp-thumb {
+  width:        55px;
+  height:       34px;
+  border-radius: 4px;
+  object-fit:   cover;
+  background:   rgba(255, 255, 255, .06);
+  flex-shrink:  0;
+}
+.mp-fields {
+  flex:           1;
+  display:        flex;
+  flex-direction: column;
+  gap:            3px;
+}
+.mp-fields input {
+  width:         100%;
+  background:    rgba(255, 255, 255, .05);
+  border:        1px solid var(--bor);
+  border-radius: 4px;
+  color:         var(--txt);
+  font-family:   var(--fb);
+  font-size:     11px;
+  font-weight:   600;
+  padding:       4px 7px;
+  outline:       none;
+}
+.mp-fields input:focus { border-color: var(--acc); }
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 23. HISTORY EDIT ROWS
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.hist-edit-row {
+  display:       flex;
+  align-items:   center;
+  gap:           8px;
+  padding:       6px 0;
+  border-bottom: 1px solid var(--bor);
+}
+.hist-edit-row:last-child { border-bottom: none; }
+
+/* Placement row in Finish Game modal */
+.place-row {
+  display:       flex;
+  align-items:   center;
+  gap:           8px;
+  padding:       5px 8px;
+  background:    rgba(255, 255, 255, .04);
+  border-radius: 6px;
+  margin-bottom: 3px;
+}
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 24. LAYOUT EDITOR v2 — OBS-style (Live iframe preview)
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+/* Canvas wrapper — 16:9, clips the iframe */
+#le-canvas {
+  position:      relative;
+  width:         100%;
+  aspect-ratio:  16 / 9;  /* default; overridden by JS on init/resolution change */
+  background:    #05080f;
+  border:        1px solid var(--bor);
+  border-radius: 6px;
+  overflow:      hidden;
+  user-select:   none;
+  cursor:        default;
+  box-sizing:    border-box;
+}
+
+/* The live overlay iframe — fills canvas, scaled down from 1920×1080 */
+#le-iframe {
+  position:      absolute;
+  top:           0;
+  left:          0;
+  width:         1920px;   /* intrinsic overlay width */
+  height:        1080px;  /* intrinsic overlay height */
+  border:        none;
+  pointer-events: none;   /* clicks pass through to handle layer */
+  transform-origin: top left;
+  /* scale is set dynamically by JS */
+}
+
+/* Transparent layer on top of iframe that catches all mouse events */
+#le-handles {
+  position:   absolute;
+  inset:      0;
+  z-index:    10;
+}
+
+/* Static grid guide lines (25/50/75%) */
+.le2-static-guide         { position: absolute; pointer-events: none; z-index: 1; }
+.le2-guide-h              { height: 1px; left: 0; right: 0; background: rgba(68,136,255,.22); box-shadow: 0 0 2px rgba(68,136,255,.1); }
+.le2-guide-v              { width:  1px; top: 0; bottom: 0; background: rgba(68,136,255,.22); box-shadow: 0 0 2px rgba(68,136,255,.1); }
+
+/* Dynamic snap guides (shown during drag) */
+.le2-snap-guide           { position: absolute; pointer-events: none; z-index: 15; }
+.le2-snap-guide.le2-guide-h { height: 1px; left: 0; right: 0; background: rgba(0,229,255,.85); box-shadow: 0 0 4px rgba(0,229,255,.5); }
+.le2-snap-guide.le2-guide-v { width:  1px; top: 0; bottom: 0; background: rgba(0,229,255,.85); box-shadow: 0 0 4px rgba(0,229,255,.5); }
+
+/* Draggable element handles — transparent with just a border */
+.le2-el {
+  position:      absolute;
+  border:        1.5px solid rgba(68,136,255,.5);
+  border-radius: 4px;
+  background:    transparent;
+  z-index:       10;
+  cursor:        move;
+  min-width:     10px;
+  min-height:    6px;
+  box-sizing:    border-box;
+}
+
+/* Label tag in corner so you know what you're hovering */
+.le2-el::after {
+  content:       attr(data-label);
+  position:      absolute;
+  top:           -18px;
+  left:          0;
+  font-family:   var(--fd), monospace;
+  font-size:     8px;
+  font-weight:   700;
+  letter-spacing: .5px;
+  color:         rgba(68,136,255,.9);
+  background:    rgba(5,8,20,.85);
+  padding:       2px 5px;
+  border-radius: 3px 3px 0 0;
+  white-space:   nowrap;
+  pointer-events: none;
+  opacity:       0;
+  transition:    opacity .15s;
+}
+.le2-el:hover::after  { opacity: 1; }
+.le2-selected::after  { opacity: 1 !important; }
+
+.le2-el:hover { border-color: rgba(68,136,255,.9); }
+.le2-selected {
+  border-color:  var(--acc) !important;
+  box-shadow:    0 0 0 1px rgba(68,136,255,.3);
+  background:    rgba(68,136,255,.06);
+}
+
+/* 8 resize handles */
+.le2-rh {
+  position:   absolute;
+  width:       8px;
+  height:      8px;
+  background:  var(--acc);
+  border:      1px solid rgba(0,0,0,.6);
+  border-radius: 2px;
+  z-index:     20;
+  box-shadow:  0 0 4px rgba(68,136,255,.7);
+}
+/* Corner handles */
+.le2-rh-nw { top: -4px; left: -4px; cursor: nw-resize; }
+.le2-rh-ne { top: -4px; right: -4px; cursor: ne-resize; }
+.le2-rh-se { bottom: -4px; right: -4px; cursor: se-resize; }
+.le2-rh-sw { bottom: -4px; left: -4px; cursor: sw-resize; }
+/* Edge handles */
+.le2-rh-n  { top: -4px; left: 50%; transform: translateX(-50%); cursor: n-resize; }
+.le2-rh-s  { bottom: -4px; left: 50%; transform: translateX(-50%); cursor: s-resize; }
+.le2-rh-w  { top: 50%; left: -4px; transform: translateY(-50%); cursor: w-resize; }
+.le2-rh-e  { top: 50%; right: -4px; transform: translateY(-50%); cursor: e-resize; }
+/* Only show handles on selected element */
+.le2-el:not(.le2-selected) .le2-rh { display: none; }
+
+/* Resolution preset buttons */
+#le-resolution-controls .le-preset-btn {
+  background:    rgba(68,136,255,.12);
+  border:        1px solid rgba(68,136,255,.3);
+  color:         var(--acc2);
+  font-family:   var(--fd);
+  font-size:     9px;
+  padding:       4px 8px;
+  border-radius: 4px;
+  cursor:        pointer;
+  transition:    background .15s, border-color .15s;
+}
+#le-resolution-controls .le-preset-btn:hover {
+  background:    rgba(68,136,255,.25);
+  border-color:  rgba(68,136,255,.7);
+}
+#le-resolution-controls .le-preset-btn.active {
+  background:    rgba(68,136,255,.3);
+  border-color:  var(--acc);
+  color:         #fff;
+}
+
+/* Inspector */
+#le-inspector { padding: 10px; }
+
+/* 8 resize handles */
+.le2-rh {
+  position:   absolute;
+  width:       8px;
+  height:      8px;
+  background:  var(--acc);
+  border:      1px solid rgba(0,0,0,.5);
+  border-radius: 2px;
+  z-index:     20;
+  box-shadow:  0 0 4px rgba(68,136,255,.6);
+}
+/* Corner handles */
+.le2-rh-nw { top: -4px; left: -4px; cursor: nw-resize; }
+.le2-rh-ne { top: -4px; right: -4px; cursor: ne-resize; }
+.le2-rh-se { bottom: -4px; right: -4px; cursor: se-resize; }
+.le2-rh-sw { bottom: -4px; left: -4px; cursor: sw-resize; }
+/* Edge handles */
+.le2-rh-n  { top: -4px; left: 50%; transform: translateX(-50%); cursor: n-resize; }
+.le2-rh-s  { bottom: -4px; left: 50%; transform: translateX(-50%); cursor: s-resize; }
+.le2-rh-w  { top: 50%; left: -4px; transform: translateY(-50%); cursor: w-resize; }
+.le2-rh-e  { top: 50%; right: -4px; transform: translateY(-50%); cursor: e-resize; }
+/* Only show handles on selected element */
+.le2-el:not(.le2-selected) .le2-rh { display: none; }
+
+/* Inspector */
+#le-inspector { padding: 10px; }
+
+.le-insp-grid {
+  display:               grid;
+  grid-template-columns: 1fr 1fr;
+  gap:                   5px;
+}
+.le-insp-field { display: flex; flex-direction: column; gap: 2px; }
+.le-insp-field label { font-size: 8px; color: var(--mut); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+.le-inp {
+  background:   rgba(255,255,255,.06);
+  border:       1px solid var(--bor);
+  border-radius: 4px;
+  color:        var(--txt);
+  font-family:  var(--fd);
+  font-size:    10px;
+  padding:      4px 6px;
+  outline:      none;
+  width:        100%;
+}
+.le-inp:focus { border-color: var(--acc); }
+.le-inp:disabled { opacity: .3; }
+
+/* Alignment buttons */
+.le-al-btn {
+  background:    rgba(255,255,255,.06);
+  border:        1px solid var(--bor);
+  border-radius: 4px;
+  color:         var(--txt);
+  font-size:     10px;
+  padding:       4px 6px;
+  cursor:        pointer;
+  transition:    background .1s;
+}
+.le-al-btn:hover { background: rgba(68,136,255,.15); border-color: var(--acc); }
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 24b. GAME QUEUE
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.queue-row {
+  background:    rgba(255,255,255,.03);
+  border:        1px solid var(--bor);
+  border-radius: 6px;
+  padding:       7px 10px;
+  transition:    border-color .15s, background .15s;
+}
+.queue-row:hover { border-color: rgba(68,136,255,.25); }
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 25. COLOUR PRESET GRID
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.preset-grid { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.cp {
+  width:         28px;
+  height:        28px;
+  border-radius: 5px;
+  border:        2px solid transparent;
+  cursor:        pointer;
+  transition:    all .15s;
+}
+.cp:hover  { transform: scale(1.1); }
+.cp.active { border-color: #fff; box-shadow: 0 0 10px rgba(255, 255, 255, .4); }
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 26. MODALS
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.modal-overlay {
+  display:         none;       /* set to flex by JS when open */
+  position:        fixed;
+  inset:           0;
+  background:      rgba(0, 0, 0, .8);
+  z-index:         9999;
+  align-items:     center;
+  justify-content: center;
+}
+.modal-box {
+  background:    var(--panel);
+  border:        1px solid var(--bor);
+  border-radius: 12px;
+  padding:       22px;
+  max-width:     440px;
+  width:         90%;
+}
+.modal-title {
+  font-family:    var(--fd);
+  font-size:      10px;
+  font-weight:    900;
+  letter-spacing: 2px;
+  color:          var(--acc2);
+  margin-bottom:  14px;
+}
+.modal-sel {
+  width:         100%;
+  background:    #fff;
+  color:         #111;
+  padding:       8px;
+  border-radius: 5px;
+  border:        1px solid var(--bor);
+  font-size:     13px;
+  font-family:   var(--fb);
+  font-weight:   600;
+  outline:       none;
+  margin-bottom: 10px;
+}
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 27. NOTIFICATIONS (toast)
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+@keyframes nIn { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: none; } }
+
+#notify-area {
+  position:       fixed;
+  top:            10px;
+  right:          10px;
+  z-index:        9999;
+  display:        flex;
+  flex-direction: column;
+  gap:            5px;
+  pointer-events: none;
+}
+.nitem {
+  background:    var(--panel);
+  border:        1px solid var(--acc);
+  border-radius: 5px;
+  padding:       6px 12px;
+  font-size:     10px;
+  font-weight:   600;
+  box-shadow:    0 3px 14px rgba(0, 0, 0, .5);
+  animation:     nIn .18s ease;
+}
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 28. DROP ZONES
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.drop-zone {
+  border:        2px dashed var(--bor);
+  border-radius: 7px;
+  padding:       12px;
+  text-align:    center;
+  cursor:        pointer;
+  transition:    all .1s;
+  color:         var(--mut);
+  font-size:     10px;
+  font-weight:   600;
+  line-height:   1.6;
+}
+.drop-zone:hover,
+.drop-zone.drag-over {
+  border-color: var(--acc);
+  color:        var(--txt);
+  background:   rgba(68, 136, 255, .05);
+}
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 29. MISC UTILITIES
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.timer-big {
+  font-family:    var(--fd);
+  font-size:      34px;
+  font-weight:    900;
+  color:          var(--acc2);
+  text-shadow:    0 0 14px rgba(0, 229, 255, .4);
+  text-align:     center;
+  margin:         8px 0;
+  letter-spacing: 3px;
+}
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 30. LIVE SYNC INDICATOR
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+@keyframes ldp { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+
+.live-w {
+  display:     flex;
+  align-items: center;
+  gap:         5px;
+  font-size:   9px;
+  font-weight: 700;
+  color:       var(--red);
+  letter-spacing: 2px;
+}
+.ldot {
+  width:         6px;
+  height:        6px;
+  border-radius: 50%;
+  background:    var(--red);
+  box-shadow:    0 0 6px var(--red);
+  animation:     ldp 1.5s infinite;
+}

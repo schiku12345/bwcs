@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Bedwars Overlay</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --acc:  #4488ff;
+  --acc2: #00e5ff;
+  --bg:   #060810;
+  --surf: #0a0d18;
+  --bor:  rgba(255,255,255,.07);
+  --txt:  rgba(255,255,255,.82);
+  --mut:  rgba(255,255,255,.28);
+  --grn:  #44ff88;
+  --fd:   'Orbitron', monospace;
+  --fb:   'Rajdhani', sans-serif;
+}
+
+html, body {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--txt);
+  font-family: var(--fb);
+}
+
+/* subtle top glow only */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0; height: 320px;
+  background: radial-gradient(ellipse 70% 100% at 50% -20%, rgba(68,136,255,.13) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes fadeUp { from { opacity:0; transform:translateY(16px) } to { opacity:1; transform:none } }
+@keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
+
+.wrap {
+  position: relative;
+  z-index: 1;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 28px;
+}
+
+/* ── HEADER ── */
+header {
+  padding: 72px 0 56px;
+  text-align: center;
+  animation: fadeUp .6s ease both;
+}
+
+.wordmark {
+  font-family: var(--fd);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 5px;
+  color: var(--mut);
+  margin-bottom: 32px;
+  text-transform: uppercase;
+}
+
+h1 {
+  font-family: var(--fd);
+  font-size: clamp(32px, 5.5vw, 58px);
+  font-weight: 900;
+  letter-spacing: .04em;
+  line-height: 1.1;
+  color: #fff;
+  margin-bottom: 18px;
+}
+h1 em {
+  font-style: normal;
+  color: var(--acc);
+}
+
+.sub {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--mut);
+  max-width: 420px;
+  margin: 0 auto;
+  line-height: 1.65;
+  animation: fadeIn .8s ease .3s both;
+}
+
+.rule {
+  width: 48px;
+  height: 1px;
+  background: rgba(68,136,255,.4);
+  margin: 36px auto;
+}
+
+/* ── CARDS ── */
+.cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 64px;
+  animation: fadeUp .6s ease .1s both;
+}
+@media(max-width:580px) { .cards { grid-template-columns: 1fr; } }
+
+.card {
+  display: block;
+  text-decoration: none;
+  background: var(--surf);
+  border: 1px solid var(--bor);
+  border-radius: 14px;
+  padding: 32px 28px 28px;
+  transition: border-color .18s, transform .18s;
+  position: relative;
+  overflow: hidden;
+}
+.card:hover {
+  border-color: rgba(68,136,255,.3);
+  transform: translateY(-4px);
+}
+.card:nth-child(2):hover { border-color: rgba(0,229,255,.25); }
+
+/* top accent line */
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+}
+.card:nth-child(1)::before { background: linear-gradient(90deg, transparent, var(--acc), transparent); }
+.card:nth-child(2)::before { background: linear-gradient(90deg, transparent, var(--acc2), transparent); }
+
+.card-eyebrow {
+  font-family: var(--fd);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.card:nth-child(1) .card-eyebrow { color: var(--acc); }
+.card:nth-child(2) .card-eyebrow { color: var(--acc2); }
+
+.card-title {
+  font-family: var(--fd);
+  font-size: clamp(18px, 2.5vw, 24px);
+  font-weight: 900;
+  color: #fff;
+  margin-bottom: 10px;
+  letter-spacing: .03em;
+}
+
+.card-desc {
+  font-size: 13px;
+  color: var(--mut);
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+.card-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--fd);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 9px 18px;
+  border-radius: 7px;
+  transition: background .15s;
+}
+.card:nth-child(1) .card-link {
+  background: var(--acc);
+  color: #fff;
+}
+.card:nth-child(1) .card-link:hover { background: #5599ff; }
+.card:nth-child(2) .card-link {
+  background: rgba(0,229,255,.1);
+  color: var(--acc2);
+  border: 1px solid rgba(0,229,255,.2);
+}
+.card:nth-child(2) .card-link:hover { background: rgba(0,229,255,.18); }
+
+.card-arrow { transition: transform .15s; }
+.card:hover .card-arrow { transform: translateX(4px); }
+
+/* ── FEATURES ── */
+.features {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 64px;
+  animation: fadeUp .6s ease .2s both;
+}
+@media(max-width:580px) { .features { grid-template-columns: 1fr 1fr; } }
+
+.feat {
+  padding: 20px 18px;
+  background: rgba(255,255,255,.02);
+  border: 1px solid var(--bor);
+  border-radius: 10px;
+}
+.feat-icon { font-size: 18px; margin-bottom: 10px; }
+.feat-title {
+  font-family: var(--fd);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.7);
+  margin-bottom: 5px;
+}
+.feat-desc { font-size: 11px; color: var(--mut); line-height: 1.55; }
+
+/* ── SETUP ── */
+.setup { margin-bottom: 64px; animation: fadeUp .6s ease .3s both; }
+
+.section-eyebrow {
+  font-family: var(--fd);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--mut);
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.steps { display: flex; flex-direction: column; gap: 8px; }
+
+.step {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 18px;
+  background: rgba(255,255,255,.02);
+  border: 1px solid var(--bor);
+  border-radius: 10px;
+}
+.step-n {
+  width: 26px; height: 26px;
+  border-radius: 6px;
+  background: rgba(68,136,255,.1);
+  border: 1px solid rgba(68,136,255,.2);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--fd); font-size: 10px; font-weight: 900;
+  color: var(--acc); flex-shrink: 0;
+}
+.step-t { font-size: 13px; font-weight: 700; color: rgba(255,255,255,.8); margin-bottom: 3px; }
+.step-d { font-size: 12px; color: var(--mut); line-height: 1.5; }
+code {
+  font-family: monospace; font-size: 11px;
+  background: rgba(0,229,255,.07);
+  color: var(--acc2);
+  padding: 1px 6px; border-radius: 4px;
+  border: 1px solid rgba(0,229,255,.12);
+}
+
+/* ── STATUS ── */
+.status {
+  display: flex; align-items: center; justify-content: center;
+  flex-wrap: wrap; gap: 20px;
+  padding: 14px 20px;
+  border: 1px solid var(--bor);
+  border-radius: 10px;
+  margin-bottom: 52px;
+  animation: fadeUp .6s ease .35s both;
+}
+.si { display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--mut); font-weight: 600; }
+.dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.dot.g { background: var(--grn); box-shadow: 0 0 6px var(--grn); }
+.dot.b { background: var(--acc); box-shadow: 0 0 6px var(--acc); }
+
+/* ── FOOTER ── */
+footer {
+  text-align: center;
+  padding: 24px 0 48px;
+  font-size: 11px;
+  color: rgba(255,255,255,.1);
+  letter-spacing: 1px;
+  animation: fadeIn 1s ease .5s both;
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header>
+    <div class="wordmark">Bedwars Overlay System</div>
+    <h1>Tournament<br><em>Control Hub</em></h1>
+    <p class="sub">Real-time streaming overlay for competitive Bedwars events. Built for OBS. No server required for local use.</p>
+  </header>
+
+  <div class="rule"></div>
+
+  <div class="cards">
+
+    <a class="card" href="admin/admin.html">
+      <div class="card-eyebrow">Control Panel</div>
+      <div class="card-title">Admin Panel</div>
+      <div class="card-desc">Manage teams, scores, game flow, standings, and every aspect of your broadcast from one screen.</div>
+      <span class="card-link">Open Admin <span class="card-arrow">→</span></span>
+    </a>
+
+    <a class="card" href="overlay/overlay.html">
+      <div class="card-eyebrow">OBS Browser Source</div>
+      <div class="card-title">Live Overlay</div>
+      <div class="card-desc">Add as a 1920×1080 Browser Source in OBS. Updates in real-time from the admin panel.</div>
+      <span class="card-link">Open Overlay <span class="card-arrow">→</span></span>
+    </a>
+
+  </div>
+
+  <div class="features">
+    <div class="feat">
+      <div class="feat-icon">⚡</div>
+      <div class="feat-title">Real-Time</div>
+      <div class="feat-desc">Admin changes hit the overlay instantly. Firebase optional for cross-machine sync.</div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">🏆</div>
+      <div class="feat-title">Standings</div>
+      <div class="feat-desc">Points persist across games. Full standings screen after every game.</div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">🗺️</div>
+      <div class="feat-title">Map Reveal</div>
+      <div class="feat-desc">Slot-machine reveal animation with custom map thumbnails.</div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">📊</div>
+      <div class="feat-title">Stats</div>
+      <div class="feat-desc">Per-player kills, finals, bed breaks. CSV import supported.</div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">🎨</div>
+      <div class="feat-title">Themeable</div>
+      <div class="feat-desc">6 colour presets or custom hex. Drag-and-drop layout editor.</div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">📂</div>
+      <div class="feat-title">Config File</div>
+      <div class="feat-desc">Maps, icons, and backgrounds set in <code>config/config.js</code>.</div>
+    </div>
+  </div>
+
+  <div class="setup">
+    <div class="section-eyebrow">Quick Setup</div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-n">1</div>
+        <div>
+          <div class="step-t">Edit config/config.js</div>
+          <div class="step-d">Add your maps, phase icons, point rules, and (optionally) a Firebase config for cross-computer sync and an admin password.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">2</div>
+        <div>
+          <div class="step-t">Open the Admin Panel</div>
+          <div class="step-d">Click <strong>Admin Panel</strong> above. Go to <strong>Theme & Config → Load config.js</strong> to apply your settings, then add teams in the <strong>Teams</strong> tab.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">3</div>
+        <div>
+          <div class="step-t">Add OBS Browser Source</div>
+          <div class="step-d">In OBS add a Browser Source at 1920×1080. Use the overlay URL from the admin Dashboard. Enable <em>Refresh browser when scene becomes active</em>.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">4</div>
+        <div>
+          <div class="step-t">GitHub Pages (optional)</div>
+          <div class="step-d">Push the repo to GitHub, enable Pages via <strong>Settings → Pages → GitHub Actions</strong>. Your admin and overlay are then accessible from any browser on any machine.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="status">
+    <div class="si"><div class="dot g"></div>No server required</div>
+    <div class="si"><div class="dot g"></div>localStorage sync</div>
+    <div class="si"><div class="dot g"></div>BroadcastChannel</div>
+    <div class="si"><div class="dot b"></div>Firebase optional</div>
+    <div class="si"><div class="dot b"></div>1920 × 1080</div>
+  </div>
+
+  <footer>BEDWARS OVERLAY · TOURNAMENT MODE</footer>
+
+</div>
+</body>
+</html>
