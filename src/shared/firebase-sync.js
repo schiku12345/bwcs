@@ -72,7 +72,7 @@ window.BWO_FIREBASE = (function () {
     function loadNext(i) {
       if (i >= scripts.length) { _connect(config); return; }
       var el = document.createElement('script');
-      el.src = scripts[i];
+      el.src = src = scripts[i];
       el.onload  = function () { loadNext(i + 1); };
       el.onerror = function () {
         console.error('[BWO_FIREBASE] Failed to load SDK script:', scripts[i]);
