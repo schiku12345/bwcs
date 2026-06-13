@@ -34,6 +34,19 @@ window.BWO_GAMESETUP = (function () {
   /** Auto-increment seed for teams created via CSV import. */
   var _idCounter = Date.now() + 1000;
 
+  /**
+   * _canonColor(name) → canonical COLOR_KEYS entry | null
+   * Resolves a CSV colour header to its canonical key.
+   * Matching is case-insensitive and accepts "Grey" as an alias for "Gray"
+   * (CSV exports from spreadsheets commonly use British spelling).
+   */
+  function _canonColor(name) {
+    if (!name) return null;
+    var n = String(name).trim().toLowerCase();
+    if (n === 'grey') n = 'gray';
+    return C.COLOR_KEYS.find(function (k) { return k.toLowerCase() === n; }) || null;
+  }
+
 
   /* ═══════════════════════════════════════════════════════════════
    * RENDER SLOTS
@@ -374,10 +387,10 @@ window.BWO_GAMESETUP = (function () {
     var slots = [];
 
     rows.forEach(function (cols) {
-      var color    = cols[0];
+      var color    = _canonColor(cols[0]);
       var teamName = cols[1] || '';
 
-      if (!color || !C.COLOR_KEYS.includes(color)) return;
+      if (!color) return;
 
       var team = _findOrCreateTeam(teams, teamName);
       var slot = ST.mkSlot(color);
@@ -398,8 +411,8 @@ window.BWO_GAMESETUP = (function () {
    */
   function _parseMultiGameCSV(rows) {
     var header    = rows[0];           // ["Game", "Map"?, "Red", "Blue", ...]
-    var col2      = (header[1] || '').trim().toLowerCase();
-    var hasMapCol = col2 && !C.COLOR_KEYS.map(function(k){return k.toLowerCase();}).includes(col2);
+    var col2      = (header[1] || '').trim();
+    var hasMapCol = col2 && !_canonColor(col2);
 
     var colorStart = hasMapCol ? 2 : 1;
     var colorCols  = header.slice(colorStart);  // ["Red", "Blue", ...]
@@ -416,8 +429,8 @@ window.BWO_GAMESETUP = (function () {
       colorCols.forEach(function (color, ci) {
         var colIdx   = colorStart + ci;
         var teamName = (cols[colIdx] || '').trim();
-        var colorKey = color.trim();
-        if (!teamName || !C.COLOR_KEYS.includes(colorKey)) return;
+        var colorKey = _canonColor(color);
+        if (!teamName || !colorKey) return;
 
         var team = _findOrCreateTeam(teams, teamName);
         var slot = ST.mkSlot(colorKey);
