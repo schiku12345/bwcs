@@ -317,6 +317,13 @@ window.BWO_ADMIN_UI = (function () {
     /* Block state-change renders until boot is complete */
     if (!_ready) return;
 
+    /* ── Per-game colour switch ──
+       When the game NUMBER changes (a new game starts), load that game's
+       colour→team mapping from the setup queue so the scoreboard, standings,
+       and scoring tab all recolour. If it applied, the nested state update
+       already re-rendered everything with fresh state — stop here. */
+    if (SETUP.maybeApplyQueueColors(state)) return;
+
     /* ── Always safe: button/mode indicator syncs ── */
     DASH.syncOvmButtons(state.overlayMode || 'starting');
     DASH.syncQuickActions(state.overlayMode || 'starting');
@@ -415,6 +422,10 @@ window.BWO_ADMIN_UI = (function () {
 
     window.addEventListener('resize', _positionSidebarTab);
     setTimeout(_positionSidebarTab, 50);
+
+    /* ── Establish the game-number baseline so the first real game change
+       (not this boot) is what triggers a queue colour switch ── */
+    SETUP.maybeApplyQueueColors(state);
 
     /* ── Subscribe to state changes ── */
     ST.subscribe(_onStateChange);

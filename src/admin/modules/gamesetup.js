@@ -342,41 +342,87 @@ window.BWO_GAMESETUP = (function () {
   }
 
   /**
+   * _applyQueueGame(game) → void
+   * Loads a setup game's colour→team mapping (and map) into the LIVE game.
+   * Deep-clones so live edits never mutate the stored queue entry, and
+   * resets per-game transient fields (score/placement/bed/elim).
+   */
+  function _applyQueueGame(game) {
+    if (!game || !game.slots) return;
+    var fresh = U.deepClone(game.slots).map(function (s) {
+      s.score = 0; s.placement = 0; s.eliminated = false; s.hasBed = true;
+      return s;
+    });
+    var update = { slots: fresh };
+    if (game.mapName) {
+      update.selectedMap = game.mapName;
+      update.mapName     = game.mapName;
+    }
+    ST.update(update);
+  }
+
+  /**
+   * _findQueueGame(queue, gameNumber) → game | null
+   * Finds the setup game for a game number, with a positional fallback
+   * when the numbers aren't a clean sequential match.
+   */
+  function _findQueueGame(queue, gameNumber) {
+    var game = queue.find(function (g) { return g.gameNumber === gameNumber; });
+    if (game) return game;
+    var prevIdx = queue.findIndex(function (g) { return g.gameNumber === gameNumber - 1; });
+    if (prevIdx >= 0 && prevIdx + 1 < queue.length) return queue[prevIdx + 1];
+    return null;
+  }
+
+  /**
    * autoAdvanceQueue() → void
-   * Called after a game finishes. Finds the next game in the queue
-   * and loads it (slots + map). Used by dashboard after confirmFinishGame.
+   * Explicitly loads the queued game matching the current game number.
+   * Routine game starts are handled by maybeApplyQueueColors() via the
+   * state subscriber; this stays for manual/legacy callers.
    */
   function autoAdvanceQueue() {
     var state = ST.get();
     var queue = state._multiGameCSV || [];
     if (!queue.length) return;
-
-    var nextNum = state.gameNumber || 1;  // already incremented by confirmFinishGame
-    var nextGame = queue.find(function (g) { return g.gameNumber === nextNum; });
-
-    if (!nextGame) {
-      // Try sequential index
-      var prevIdx = queue.findIndex(function (g) { return g.gameNumber === nextNum - 1; });
-      if (prevIdx >= 0 && prevIdx + 1 < queue.length) {
-        nextGame = queue[prevIdx + 1];
-      }
-    }
-
+    var nextGame = _findQueueGame(queue, state.gameNumber || 1);
     if (nextGame) {
-      // Deep-clone so the live game never shares slot refs with the queue
-      // entry, and reset per-game transient fields for a clean start.
-      var freshSlots = U.deepClone(nextGame.slots || []).map(function (s) {
-        s.score = 0; s.placement = 0; s.eliminated = false; s.hasBed = true;
-        return s;
-      });
-      var update = { slots: freshSlots };
-      if (nextGame.mapName) {
-        update.selectedMap = nextGame.mapName;
-        update.mapName     = nextGame.mapName;
-      }
-      ST.update(update);
+      _applyQueueGame(nextGame);
       UI.notify('Queue: loaded Game ' + nextGame.gameNumber + (nextGame.mapName ? ' — ' + nextGame.mapName : ''));
     }
+  }
+
+  /**
+   * maybeApplyQueueColors(state) → boolean
+   * Subscriber hook. Whenever the game NUMBER changes (a new game starts),
+   * switch the live slot colours to that game's setup mapping so the
+   * scoreboard, standings, and scoring tab all recolour. Returns true if it
+   * applied a change (the caller can stop — the nested update re-rendered).
+   *
+   * A baseline is established on the first call (boot) so the current game's
+   * colours are never clobbered just because the admin loaded.
+   */
+  var _lastGameNum = null;
+  function maybeApplyQueueColors(state) {
+    var gn = state.gameNumber || 1;
+    if (_lastGameNum === null) { _lastGameNum = gn; return false; }  // baseline only
+    if (gn === _lastGameNum) return false;
+    _lastGameNum = gn;
+
+    var queue = state._multiGameCSV || [];
+    if (!queue.length) return false;
+    var game = _findQueueGame(queue, gn);
+    if (!game || !game.slots || !game.slots.length) return false;
+
+    /* Skip if the live slots already carry this game's colour→team map */
+    var cur  = state.slots || [];
+    var same = cur.length === game.slots.length && game.slots.every(function (gs, i) {
+      return cur[i] && cur[i].teamId === gs.teamId && cur[i].color === gs.color;
+    });
+    if (same) return false;
+
+    _applyQueueGame(game);
+    UI.notify('Game ' + gn + ' colours loaded from setup');
+    return true;
   }
 
 
@@ -527,6 +573,7 @@ window.BWO_GAMESETUP = (function () {
     renderQueue,
     addQueueGame,
     autoAdvanceQueue,
+    maybeApplyQueueColors,
     clearQueue,
   });
 

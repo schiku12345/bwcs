@@ -761,11 +761,10 @@ window.BWO_DASHBOARD = (function () {
     var winnerName = _placementOrder[0] ? _placementOrder[0].name : '?';
     UI.notify('Game ' + histEntry.gameNumber + ' saved! Winner: ' + winnerName + ' 🏆');
 
-    // Auto-advance queue to next game
-    if (window.BWO_GAMESETUP && window.BWO_GAMESETUP.autoAdvanceQueue) {
-      window.BWO_GAMESETUP.autoAdvanceQueue();
-    }
-    // Map is now picked from the "Play Map Reveal" button in the Summary quick actions
+    // The game number just advanced → the admin state subscriber
+    // (BWO_GAMESETUP.maybeApplyQueueColors) loads the next setup game's
+    // colour→team mapping + map, so scoreboard/standings/scoring recolour.
+    // The next map is then revealed via "Play Map Reveal" in Summary.
   }
 
 
