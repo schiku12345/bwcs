@@ -381,15 +381,25 @@ window.BWO_DASHBOARD = (function () {
   function openMapModal(afterFinish) {
     var state = ST.get();
 
+    /* Pre-select the next map. autoAdvanceQueue() writes the upcoming game's
+       map into state.selectedMap, so the reveal modal opens with it already
+       chosen (the user just clicks Play). */
+    var preMap = state.selectedMap || '';
+
     var sel = document.getElementById('mm-map-sel');
     if (sel) {
-      sel.innerHTML = '<option value="">— Choose map —</option>' +
-        (state.mapPool || []).map(function (m) {
-          // After finishing a game, always start with no map pre-selected
-          // so the user must actively pick the next one
-          var selected = (!afterFinish && m.name === state.selectedMap) ? ' selected' : '';
-          return '<option value="' + U.escapeHtml(m.name) + '"' + selected + '>' + U.escapeHtml(m.name) + '</option>';
-        }).join('');
+      var pool   = state.mapPool || [];
+      var inPool = pool.some(function (m) { return m.name === preMap; });
+      var opts   = '<option value="">— Choose map —</option>';
+      // Surface the queued map even if it isn't in the saved map pool
+      if (preMap && !inPool) {
+        opts += '<option value="' + U.escapeHtml(preMap) + '" selected>' + U.escapeHtml(preMap) + '</option>';
+      }
+      opts += pool.map(function (m) {
+        var selected = m.name === preMap ? ' selected' : '';
+        return '<option value="' + U.escapeHtml(m.name) + '"' + selected + '>' + U.escapeHtml(m.name) + '</option>';
+      }).join('');
+      sel.innerHTML = opts;
     }
 
     var animSel = document.getElementById('mm-anim-sel');

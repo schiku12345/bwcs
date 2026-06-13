@@ -208,11 +208,18 @@ window.BWO_GAMESETUP = (function () {
 
     container.innerHTML = queue.map(function (game, idx) {
       var isActive = game.gameNumber === currentNum;
-      var slotNames = game.slots.map(function (slot) {
+      var slotNames = game.slots.map(function (slot, si) {
         var team = ST.getTeamById(state, slot.teamId);
         var hex  = C.COLORS[slot.color] || '#888';
-        return '<span style="display:inline-flex;align-items:center;gap:2px;margin-right:3px;">' +
-          '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:' + hex + ';"></span>' +
+        var colorOpts = C.COLOR_KEYS.map(function (col) {
+          return '<option value="' + col + '"' + (col === slot.color ? ' selected' : '') + '>' + col + '</option>';
+        }).join('');
+        return '<span style="display:inline-flex;align-items:center;gap:3px;margin:0 6px 3px 0;">' +
+          '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:' + hex + ';flex-shrink:0;"></span>' +
+          '<select class="q-color-sel" data-qi="' + idx + '" data-si="' + si + '" title="Bed colour for this game" ' +
+            'style="background:#fff;color:#111;border:1px solid var(--bor);border-radius:3px;font-family:var(--fd);font-size:8px;padding:1px 3px;outline:none;cursor:pointer;">' +
+            colorOpts +
+          '</select>' +
           '<span style="font-size:9px;color:var(--txt);">' + U.escapeHtml(team ? team.name : slot.color) + '</span>' +
         '</span>';
       }).join('');
@@ -252,6 +259,27 @@ window.BWO_GAMESETUP = (function () {
       } else if (action === 'del-game') {
         _deleteQueueGame(qi);
       }
+    };
+
+    /* Delegated change — per-game bed-colour edit (q-color-sel).
+       Lets each queued game carry its OWN colour→team mapping so the
+       scoreboard recolours when autoAdvanceQueue() loads it on Finish. */
+    container.onchange = function (ev) {
+      var sel = ev.target;
+      if (!sel.classList || !sel.classList.contains('q-color-sel')) return;
+      var qi = parseInt(sel.getAttribute('data-qi'));
+      var si = parseInt(sel.getAttribute('data-si'));
+      var queue = U.deepClone(ST.get()._multiGameCSV || []);
+      if (!queue[qi] || !queue[qi].slots || !queue[qi].slots[si]) return;
+
+      queue[qi].slots[si].color = sel.value;
+
+      var patch = { _multiGameCSV: queue };
+      // If this row IS the active game, mirror the colour into live slots now
+      if (queue[qi].gameNumber === (ST.get().gameNumber || 1)) {
+        patch.slots = U.deepClone(queue[qi].slots);
+      }
+      ST.update(patch);
     };
   }
 
@@ -335,7 +363,13 @@ window.BWO_GAMESETUP = (function () {
     }
 
     if (nextGame) {
-      var update = { slots: nextGame.slots };
+      // Deep-clone so the live game never shares slot refs with the queue
+      // entry, and reset per-game transient fields for a clean start.
+      var freshSlots = U.deepClone(nextGame.slots || []).map(function (s) {
+        s.score = 0; s.placement = 0; s.eliminated = false; s.hasBed = true;
+        return s;
+      });
+      var update = { slots: freshSlots };
       if (nextGame.mapName) {
         update.selectedMap = nextGame.mapName;
         update.mapName     = nextGame.mapName;
