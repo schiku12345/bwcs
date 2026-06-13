@@ -536,16 +536,25 @@ window.BWO_DASHBOARD = (function () {
   function openFinishModal() {
     var state = ST.get();
 
-    // Build default placement order from active slots
-    _placementOrder = ST.getActiveSlots(state).map(function (slot) {
-      var team = ST.getTeamById(state, slot.teamId);
-      return {
-        teamId: slot.teamId,
-        name:   team ? team.name : slot.color,
-        color:  slot.color,
-        score:  slot.score || 0,
-      };
-    });
+    /* Build placement order from active slots, PRE-SORTED by the
+       placements preselected on the Scores & Stats page (slot.placement).
+       Unset teams (placement 0) fall to the bottom in their natural order. */
+    _placementOrder = ST.getActiveSlots(state)
+      .slice()
+      .sort(function (a, b) {
+        var pa = a.placement || 999;
+        var pb = b.placement || 999;
+        return pa - pb;
+      })
+      .map(function (slot) {
+        var team = ST.getTeamById(state, slot.teamId);
+        return {
+          teamId: slot.teamId,
+          name:   team ? team.name : slot.color,
+          color:  slot.color,
+          score:  slot.score || 0,
+        };
+      });
 
     _renderPlacementOrder();
     var modal = document.getElementById('finish-modal');
@@ -643,25 +652,52 @@ window.BWO_DASHBOARD = (function () {
    */
   function confirmFinishGame() {
     var state         = ST.get();
-    var placementPts  = state.placementRules || [10, 7, 5, 4, 3, 2, 1, 0];
+    var placementPts  = state.placementRules || [50, 30, 20, 10, 5, 3, 2, 1];
+    var rules         = state.pointRules     || {};
+    var playerStats   = state.playerStats    || {};
     var winnerId      = _placementOrder.length > 0 ? _placementOrder[0].teamId : null;
 
     // Snapshot standings before applying points (for ▲▼ delta)
     var prevRanks = {};
     ST.getStandings(state).forEach(function (t, i) { prevRanks[t.id] = i + 1; });
 
+    /* Per-team Finals/Beds split from this game's player stats. */
+    function _teamStatSplit(team) {
+      var finals = 0, beds = 0;
+      (team ? team.players || [] : []).forEach(function (p) {
+        var name = U.getPlayerName(p).trim();
+        if (!name) return;
+        var s = playerStats[name];
+        if (!s) return;
+        finals += (s.finals    || 0);
+        beds   += (s.bedbreaks || 0);
+      });
+      return {
+        finals:    finals,
+        beds:      beds,
+        finalsPts: Math.round(finals * (rules.finals    || 0)),
+        bedsPts:   Math.round(beds   * (rules.bedbreaks || 0)),
+      };
+    }
+
     // Build result array — one entry per active slot
     var gameResults = [];
     (state.slots || []).forEach(function (slot) {
       if (!slot.teamId) return;
-      var placeIdx  = _placementOrder.findIndex(function (p) { return p.teamId === slot.teamId; });
-      var placePts  = placeIdx >= 0 ? (placementPts[placeIdx] || 0) : 0;
-      var statPts   = slot.score || 0;
+      var placeIdx = _placementOrder.findIndex(function (p) { return p.teamId === slot.teamId; });
+      var placePts = placeIdx >= 0 ? (placementPts[placeIdx] || 0) : 0;
+      var team     = ST.getTeamById(state, slot.teamId);
+      var split    = _teamStatSplit(team);
+      var statPts  = split.finalsPts + split.bedsPts;
       gameResults.push({
         teamId:    slot.teamId,
         pts:       statPts + placePts,
-        statPts,
-        placePts,
+        statPts:   statPts,
+        finalsPts: split.finalsPts,
+        bedsPts:   split.bedsPts,
+        finals:    split.finals,
+        beds:      split.beds,
+        placePts:  placePts,
         placement: placeIdx + 1,
         color:     slot.color,
       });
@@ -676,11 +712,12 @@ window.BWO_DASHBOARD = (function () {
       team.prevRank     = prevRanks[team.id] || null;
     });
 
-    // Build history entry
+    // Build history entry — store a snapshot of this game's player stats
     var histEntry = {
-      gameNumber: state.gameNumber || 1,
-      mapName:    state.mapName    || '',
-      results:    gameResults.map(function (r) {
+      gameNumber:  state.gameNumber || 1,
+      mapName:     state.mapName    || '',
+      playerStats: U.deepClone(playerStats),
+      results:     gameResults.map(function (r) {
         var team = namedTeams.find(function (t) { return t.id === r.teamId; });
         return Object.assign({}, r, { teamName: team ? team.name : '?' });
       }),
@@ -689,15 +726,16 @@ window.BWO_DASHBOARD = (function () {
     var gameHistory = U.deepClone(state.gameHistory || []);
     gameHistory.push(histEntry);
 
-    // Reset slot scores for next game
+    // Reset slot scores + placements for next game
     var slots = U.deepClone(state.slots || []);
-    slots.forEach(function (s) { s.score = 0; s.eliminated = false; s.hasBed = true; });
+    slots.forEach(function (s) { s.score = 0; s.placement = 0; s.eliminated = false; s.hasBed = true; });
 
     ST.update({
       namedTeams:       namedTeams,
       gameHistory:      gameHistory,
       lastWinnerTeamId: winnerId,
       slots:            slots,
+      playerStats:      {},   // clear current-game stats for the next game
       overlayMode:      'summary',
       timerRunning:     false,
       timerOffset:      0,

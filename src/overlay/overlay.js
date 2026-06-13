@@ -626,9 +626,67 @@
   var _summaryPhaseTimeout = null;
 
   /**
+   * _winnerSkinUrls(state) → string[]
+   * Full-body + fallback skin URLs for the winning team's players.
+   *
+   * @param {object} state
+   * @returns {string[]}
+   */
+  function _winnerSkinUrls(state) {
+    var team = state.lastWinnerTeamId ? ST.getTeamById(state, state.lastWinnerTeamId) : null;
+    if (!team) return [];
+    var sz = state.teamSize || 4;
+    var urls = [];
+    (team.players || [])
+      .filter(function (p) { return U.getPlayerName(p).trim(); })
+      .slice(0, sz)
+      .forEach(function (p) {
+        var name = U.getPlayerName(p);
+        urls.push(U.skinFullURL(name));
+        urls.push(U.skinFallbackURL(name));
+      });
+    return urls;
+  }
+
+  /**
+   * _preloadImages(urls, done, timeoutMs) → void
+   * Loads every URL into the browser cache, then calls done().
+   * A timeout guards against a slow/unreachable skin host so the
+   * winner screen never hangs.
+   *
+   * @param {string[]} urls
+   * @param {function} done
+   * @param {number}   [timeoutMs=3000]
+   */
+  function _preloadImages(urls, done, timeoutMs) {
+    urls = (urls || []).filter(Boolean);
+    if (!urls.length) { done(); return; }
+
+    var remaining = urls.length;
+    var finished  = false;
+
+    function settle() {
+      if (finished) return;
+      remaining -= 1;
+      if (remaining <= 0) { finished = true; done(); }
+    }
+
+    urls.forEach(function (u) {
+      var img = new Image();
+      img.onload  = settle;
+      img.onerror = settle;
+      img.src     = u;
+    });
+
+    setTimeout(function () {
+      if (!finished) { finished = true; done(); }
+    }, timeoutMs || 3000);
+  }
+
+  /**
    * _renderSummaryScreen(state) → void
    * Populates BOTH panels of the summary screen:
-   *   Phase 1 — Winner Panel (shown first, 6 seconds)
+   *   Phase 1 — Winner Panel (shown first, winnerDisplaySecs = 10s)
    *   Phase 2 — Standings Panel (shown after)
    *
    * @param {object} state
@@ -677,7 +735,7 @@
           '<img class="winner-skin"' +
             ' src="' + U.skinFullURL(name) + '"' +
             ' onerror="this.src=\'' + U.skinFallbackURL(name) + '\'"' +
-            ' loading="lazy"' +
+            ' loading="eager"' +
             ' style="width:' + skinW + ';filter:drop-shadow(0 0 20px ' + acc + ')"/>' +
           '<div class="winner-ign" style="font-size:' + ignSz + '">' + U.escapeHtml(name) + '</div>' +
         '</div>';
@@ -731,11 +789,12 @@
         : null;
       var gamePts = gameResult ? gameResult.pts : 0;
 
-      /* ▲▼ delta (position change from previous game) */
+      /* ▲▼ delta (position change from previous game) — large & glowing
+         so viewers can clearly see who is climbing or dropping */
       var delta = team.prevRank != null ? team.prevRank - (rank + 1) : null;
       var deltaHTML = delta === null ? '' :
-        delta  > 0 ? '<span class="std-delta up"   style="font-size:clamp(10px,.75vw,14px);margin-left:.5vw;">▲' + delta       + '</span>' :
-        delta  < 0 ? '<span class="std-delta down" style="font-size:clamp(10px,.75vw,14px);margin-left:.5vw;">▼' + Math.abs(delta) + '</span>' : '';
+        delta  > 0 ? '<span class="std-delta up"   style="font-size:clamp(22px,1.9vw,42px);margin-left:.7vw;text-shadow:0 0 14px #44ff88;">▲' + delta       + '</span>' :
+        delta  < 0 ? '<span class="std-delta down" style="font-size:clamp(22px,1.9vw,42px);margin-left:.7vw;text-shadow:0 0 14px #ff4a4a;">▼' + Math.abs(delta) + '</span>' : '';
 
       var rankCls    = rank === 0 ? 'top1' : rank === 1 ? 'top2' : rank === 2 ? 'top3' : '';
       var rankNumCls = rank === 0 ? 'r1'   : rank === 1 ? 'r2'   : rank === 2 ? 'r3'   : '';
@@ -982,10 +1041,14 @@
         GAME_PANELS.forEach(function (id) { var el = gid(id); if (el) el.classList.add('hidden'); });
         _renderSummaryScreen(state);
         var ss = gid('summary-screen');
-        setTimeout(function () {
+        /* Preload the winner's skins BEFORE revealing the screen so the
+           full-body renders are already on-screen when it fades in
+           (no late pop-in). Falls back after 3s if a skin host is slow. */
+        _preloadImages(_winnerSkinUrls(state), function () {
+          if (ST.get().overlayMode !== 'summary') return;  // user moved on
           if (ss) ss.classList.add('show');
-          _showSummaryPhase('winner', state);
-        }, 50);
+          _showSummaryPhase('winner', ST.get());
+        }, 3000);
         break;
 
       case 'map':

@@ -393,35 +393,41 @@
            PAGE: SCORES & STATS
       ══════════════════════════════════════════════════════════════ -->
       <div id="pg-scores" class="pg">
-        <div class="h1">This Game — Points Preview</div>
-        <p class="help" style="margin-bottom:8px;">Live stat-points preview per team. Set placement in Finish Game to see totals.</p>
-        <div id="sc-summary"></div>
-
-        <div class="h1">Player Stats</div>
+        <div class="h1">This Game — Scoring</div>
+        <p class="help" style="margin-bottom:8px;">
+          Enter each player's <strong>Finals</strong> (final kills) and <strong>Beds</strong> (beds broken),
+          then pick each team's <strong>placement</strong>. Placements carry straight into Finish Game.
+        </p>
         <div class="card">
           <div class="drop-zone" onclick="document.getElementById('stat-csv-file').click()" style="margin-bottom:8px;">
-            📂 Stats CSV: <code>IGN, KILLS, DEATHS, FINALS, BEDBREAKS</code>
+            📂 Stats CSV: <code>IGN, FINALS, BEDS</code>
           </div>
           <input type="file" id="stat-csv-file" accept=".csv,.txt" style="display:none"
             onchange="handleStatCSVFile(this)"/>
           <div id="csv-stat-preview" style="display:none;margin-bottom:7px;font-size:10px;color:var(--mut);"></div>
           <div style="display:flex;gap:6px;margin-bottom:8px;">
             <button class="btn btn-p btn-sm" id="stat-csv-apply" style="display:none" onclick="applyStatCSV()">✓ Apply CSV</button>
-            <button class="btn btn-d btn-sm" onclick="clearStats()">Clear Stats</button>
+            <button class="btn btn-d btn-sm" onclick="clearStats()">Clear This Game</button>
           </div>
-          <div id="pstat-table"></div>
+          <div id="sc-game-table"></div>
         </div>
 
-        <div class="h1">Kill / Death Point Rules</div>
+        <div class="h1">Total Stats — All Games</div>
+        <p class="help" style="margin-bottom:8px;">Cumulative final kills, beds &amp; placement counts across every finished game.</p>
+        <div class="card" id="sc-total-stats"></div>
+
+        <div class="h1">Total Points — Standings Breakdown</div>
+        <p class="help" style="margin-bottom:8px;">How each team's points split between stats and placement. Matches the live standings.</p>
+        <div class="card" id="sc-total-points"></div>
+
+        <div class="h1">Stat Point Rules</div>
         <div class="card">
-          <div class="pr-row"><div class="pr-label">Kill</div>                                    <input class="pr-inp" id="pr-kills"     type="number" min="0"  step=".5" value="1" oninput="savePR()"/></div>
-          <div class="pr-row"><div><div class="pr-label">Death</div><div class="pr-sub">can be negative</div></div><input class="pr-inp" id="pr-deaths"   type="number"       step=".5" value="0" oninput="savePR()"/></div>
-          <div class="pr-row"><div class="pr-label">Final Kill</div>                              <input class="pr-inp" id="pr-finals"    type="number" min="0"  step=".5" value="2" oninput="savePR()"/></div>
-          <div class="pr-row"><div class="pr-label">Bed Break</div>                               <input class="pr-inp" id="pr-bedbreaks" type="number" min="0"  step=".5" value="3" oninput="savePR()"/></div>
+          <div class="pr-row"><div class="pr-label">Final Kill</div><input class="pr-inp" id="pr-finals"    type="number" min="0" step=".5" value="4" oninput="savePR()"/></div>
+          <div class="pr-row"><div class="pr-label">Bed Break</div> <input class="pr-inp" id="pr-bedbreaks" type="number" min="0" step=".5" value="7" oninput="savePR()"/></div>
         </div>
 
         <div class="h1">Placement Bonus Points</div>
-        <p class="help" style="margin-bottom:8px;">Points awarded per finishing position. Added on top of stat points when a game is finished.</p>
+        <p class="help" style="margin-bottom:8px;">Points awarded per finishing position (Win / 2nd / 3rd / 4th …). Added on top of stat points when a game is finished.</p>
         <div class="card" id="placement-rules-card"></div>
       </div><!-- /pg-scores -->
 
@@ -740,7 +746,8 @@
   <!-- Physical config (maps, icons, etc.) -->
   <script src="../../config/config.js"></script>
 
-  <!-- Shared modules (no dependencies between them except constants → utils → state) -->\n  <script src="../shared/constants.js"></script>
+  <!-- Shared modules (no dependencies between them except constants → utils → state) -->
+  <script src="../shared/constants.js"></script>
   <script src="../shared/utils.js"></script>
   <script src="../shared/firebase-sync.js"></script>
   <script src="../shared/state.js"></script>

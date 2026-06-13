@@ -724,6 +724,71 @@ code {
 
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 18b. SCORING SPREADSHEET (Scores & Stats page)
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* Per-team scoring block */
+.sc-team {
+  border: 1px solid var(--bor);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  background: rgba(255, 255, 255, .02);
+}
+.sc-team:last-child { margin-bottom: 0; }
+
+.sc-team-hdr {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.sc-dot   { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.sc-tname { flex: 1; font-weight: 800; font-size: 12px; letter-spacing: .3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sc-place-sel {
+  width: 110px;
+  background: #fff;
+  color: #111;
+  border: 1px solid var(--bor);
+  border-radius: 4px;
+  font-family: var(--fb);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 6px;
+  outline: none;
+  cursor: pointer;
+}
+.sc-ttot { font-family: var(--fd); font-size: 18px; font-weight: 900; min-width: 34px; text-align: right; }
+
+/* Per-game player rows */
+.sc-col-hdr,
+.sc-prow { display: grid; grid-template-columns: 1fr 64px 64px 44px; gap: 5px; align-items: center; }
+.sc-col-hdr { padding: 2px 0 3px; border-bottom: 1px solid var(--bor); margin-bottom: 3px; }
+.sc-prow    { padding: 3px 0; }
+
+.sc-lbl   { font-size: 8px; font-weight: 700; letter-spacing: 1px; color: var(--mut); text-align: center; text-transform: uppercase; }
+.sc-pname { font-size: 11px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sc-stat  { text-align: center; }
+.sc-ppts  { font-family: var(--fd); font-size: 11px; font-weight: 700; color: var(--acc2); text-align: center; opacity: .85; }
+
+.sc-team-foot {
+  margin-top: 5px;
+  padding-top: 5px;
+  border-top: 1px dashed var(--bor);
+  font-size: 10px;
+  color: var(--mut);
+  text-align: right;
+}
+.sc-team-foot strong { color: var(--txt); font-family: var(--fd); }
+
+/* Total Stats / Total Points tables */
+.sc-sub  { font-family: var(--fd); font-size: 8px; font-weight: 700; letter-spacing: 1.5px; color: var(--mut); text-transform: uppercase; margin-bottom: 5px; }
+.sc-trow { display: grid; grid-template-columns: 1fr 70px 70px; gap: 5px; align-items: center; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
+.sc-trow:last-child { border-bottom: none; }
+.sc-thdr { border-bottom: 1px solid var(--bor); margin-bottom: 3px; padding-bottom: 4px; }
+.sc-tcell { font-family: var(--fd); font-size: 12px; font-weight: 700; text-align: center; }
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * 19. POINT RULE ROWS
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 .pr-row {

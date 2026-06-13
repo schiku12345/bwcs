@@ -128,8 +128,12 @@ window.BWO_CONFIG = {
    *           Leave as "" for no image (shows a 🗺️ placeholder).
    * ────────────────────────────────────────────────────────────── */
   maps: [
+    // Drop a PNG into config/images/maps/ named to match, then uncomment.
+    // Or add/edit maps live in the admin → Theme & Config → Map Pool
+    // (paste any image URL there — no file editing needed).
     // { name: "Aquila",   imageUrl: "images/maps/aquila.png" },
     // { name: "Castaway", imageUrl: "images/maps/castaway.png" },
+    // { name: "Lotus",    imageUrl: "images/maps/lotus.png" },
     // Add more maps here …
   ],
 
@@ -190,21 +194,23 @@ window.BWO_CONFIG = {
 
 
   /* ──────────────────────────────────────────────────────────────
-   * POINT RULES — Kill / Death Stats
+   * POINT RULES — Stat Points
+   * Only two stats are tracked: final kills ("Finals") and beds broken
+   * ("Beds"). Kills/deaths are NOT scored.
+   * Defaults match the tournament spreadsheet (Finals=4, Beds=7).
    * ────────────────────────────────────────────────────────────── */
   pointRules: {
-    kills:     1,
-    deaths:    0,
-    finals:    2,
-    bedbreaks: 3,
+    finals:    4,   // points per final kill
+    bedbreaks: 7,   // points per bed broken
   },
 
 
   /* ──────────────────────────────────────────────────────────────
-   * PLACEMENT BONUS POINTS
-   * Index 0 = 1st place, index 7 = 8th place.
+   * PLACEMENT BONUS POINTS ("Win / 2nd / 3rd / 4th …")
+   * Index 0 = 1st place (Win), index 1 = 2nd, etc.
+   * Defaults match the spreadsheet: Win=50, 2nd=30, 3rd=20, 4th=10.
    * ────────────────────────────────────────────────────────────── */
-  placementRules: [10, 7, 5, 4, 3, 2, 1, 0],
+  placementRules: [50, 30, 20, 10, 5, 3, 2, 1],
 
 };
 

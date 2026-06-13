@@ -218,15 +218,18 @@ window.BWO_HISTORY = (function () {
     var rowsEl = document.getElementById('he-rows');
     if (!rowsEl) return;
 
-    var rules = state.pointRules || {};
+    var rules        = state.pointRules     || {};
+    var placementPts = state.placementRules || [50, 30, 20, 10, 5, 3, 2, 1];
+    var game         = (state.gameHistory || [])[_editIdx] || {};
+    var gameStats    = game.playerStats || {};
 
     rowsEl.innerHTML =
       '<div style="font-size:8px;color:var(--mut);font-weight:700;letter-spacing:1px;margin-bottom:6px;">' +
-        'PLACEMENTS, STATS &amp; POINTS — drag ⠿ to reorder placement' +
+        'PLACEMENTS, STATS &amp; POINTS — drag ⠿ to reorder placement (Win is top)' +
       '</div>' +
       '<div id="he-drag-list">' +
         _editSortedResults.map(function (result, ri) {
-          return _buildEditorRowHTML(result, ri, state, rules);
+          return _buildEditorRowHTML(result, ri, state, rules, placementPts, gameStats);
         }).join('') +
       '</div>';
 
@@ -256,48 +259,69 @@ window.BWO_HISTORY = (function () {
       _renderEditorRows(state);
     });
 
-    /* Live total recalculation when stat/place pts change */
+    /* Live recalculation: stat pts derive from the row's Finals/Beds inputs */
     rowsEl.oninput = function (ev) {
       var el = ev.target;
-      if (el.classList.contains('he-pts-inp') || el.classList.contains('he-plc-inp')) {
-        var ri    = parseInt(el.getAttribute('data-ri'));
-        var stat  = parseFloat(document.getElementById('he-stat-'   + ri)    .value) || 0;
-        var place = parseFloat(document.getElementById('he-plcpts-' + ri)    .value) || 0;
-        var tot   = document.getElementById('he-total-' + ri);
-        if (tot) tot.textContent = stat + place;
-      }
+      if (!el.classList.contains('he-stat-inp')) return;
+      var ri = parseInt(el.getAttribute('data-ri'));
+      if (isNaN(ri)) return;
+
+      var finals = 0, beds = 0;
+      document.querySelectorAll('.he-stat-inp[data-ri="' + ri + '"]').forEach(function (inp) {
+        var v = parseInt(inp.value) || 0;
+        if (inp.getAttribute('data-key') === 'finals')    finals += v;
+        if (inp.getAttribute('data-key') === 'bedbreaks') beds   += v;
+      });
+      var statPts = Math.round(finals * (rules.finals || 0) + beds * (rules.bedbreaks || 0));
+      var placePts = parseFloat((document.getElementById('he-plc-' + ri) || { textContent: 0 }).textContent) || 0;
+
+      var statEl = document.getElementById('he-stat-' + ri);
+      if (statEl) statEl.textContent = statPts;
+      var totEl = document.getElementById('he-total-' + ri);
+      if (totEl) totEl.textContent = statPts + placePts;
     };
   }
 
   /**
-   * _buildEditorRowHTML(result, ri, state, rules) → string
-   * Builds one draggable row for the editor.
+   * _buildEditorRowHTML(result, ri, state, rules, placementPts, gameStats) → string
+   * Builds one draggable row for the editor. Stat points are derived from
+   * the team's per-player Finals/Beds; placement points come from row order.
    *
-   * @param {object} result - Game result object { teamId, teamName, color, pts, statPts, placePts, placement }
-   * @param {number} ri     - Row index in _editSortedResults
-   * @param {object} state
-   * @param {object} rules  - Point rules
+   * @param {object}   result       - Game result { teamId, teamName, color, … }
+   * @param {number}   ri           - Row index in _editSortedResults
+   * @param {object}   state
+   * @param {object}   rules        - { finals, bedbreaks }
+   * @param {number[]} placementPts - Placement bonus array
+   * @param {object}   gameStats    - This game's player-stat snapshot
    * @returns {string}
    */
-  function _buildEditorRowHTML(result, ri, state, rules) {
+  function _buildEditorRowHTML(result, ri, state, rules, placementPts, gameStats) {
     var hex   = C.COLORS[result.color] || '#888';
     var team  = ST.getTeamById(state, result.teamId);
     var players = team
       ? (team.players || []).filter(function (p) { return U.getPlayerName(p).trim(); })
       : [];
 
-    /* Per-player stat inputs */
+    /* Derive this team's stat points from the snapshot */
+    var finals = 0, beds = 0;
+    players.forEach(function (p) {
+      var s = gameStats[U.getPlayerName(p)] || {};
+      finals += (s.finals || 0);
+      beds   += (s.bedbreaks || 0);
+    });
+    var statPts  = Math.round(finals * (rules.finals || 0) + beds * (rules.bedbreaks || 0));
+    var placePts = placementPts[ri] || 0;
+
+    /* Per-player Finals/Beds inputs */
     var playerInputsHTML = players.length
       ? '<div style="padding:4px 0 0 20px;display:flex;flex-wrap:wrap;gap:4px;">' +
           players.map(function (p) {
             var name = U.getPlayerName(p);
-            var ps   = (state.playerStats || {})[name] || {};
+            var ps   = gameStats[name] || {};
             return '<div style="display:flex;gap:4px;align-items:center;background:rgba(255,255,255,.04);border-radius:4px;padding:3px 6px;">' +
               '<span style="font-size:9px;color:rgba(255,255,255,.5);min-width:50px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + U.escapeHtml(name) + '</span>' +
-              '<span style="font-size:8px;color:var(--mut);">K</span>'  + '<input type="number" min="0" value="' + (ps.kills     || 0) + '" class="he-stat-inp pr-inp" style="width:38px;font-size:10px;padding:2px;" data-name="' + U.escapeHtml(name) + '" data-key="kills"/>' +
-              '<span style="font-size:8px;color:var(--mut);">D</span>'  + '<input type="number" min="0" value="' + (ps.deaths    || 0) + '" class="he-stat-inp pr-inp" style="width:38px;font-size:10px;padding:2px;" data-name="' + U.escapeHtml(name) + '" data-key="deaths"/>' +
-              '<span style="font-size:8px;color:var(--mut);">FK</span>' + '<input type="number" min="0" value="' + (ps.finals    || 0) + '" class="he-stat-inp pr-inp" style="width:38px;font-size:10px;padding:2px;" data-name="' + U.escapeHtml(name) + '" data-key="finals"/>' +
-              '<span style="font-size:8px;color:var(--mut);">BB</span>' + '<input type="number" min="0" value="' + (ps.bedbreaks || 0) + '" class="he-stat-inp pr-inp" style="width:38px;font-size:10px;padding:2px;" data-name="' + U.escapeHtml(name) + '" data-key="bedbreaks"/>' +
+              '<span style="font-size:8px;color:var(--mut);">Finals</span>' + '<input type="number" min="0" value="' + (ps.finals    || 0) + '" class="he-stat-inp pr-inp" style="width:42px;font-size:10px;padding:2px;" data-name="' + U.escapeHtml(name) + '" data-key="finals"    data-ri="' + ri + '"/>' +
+              '<span style="font-size:8px;color:var(--mut);">Beds</span>'   + '<input type="number" min="0" value="' + (ps.bedbreaks || 0) + '" class="he-stat-inp pr-inp" style="width:42px;font-size:10px;padding:2px;" data-name="' + U.escapeHtml(name) + '" data-key="bedbreaks" data-ri="' + ri + '"/>' +
             '</div>';
           }).join('') +
         '</div>'
@@ -311,13 +335,13 @@ window.BWO_HISTORY = (function () {
       '<div style="display:flex;align-items:center;gap:8px;">' +
         '<span style="color:var(--mut);font-size:14px;user-select:none;">⠿</span>' +
         '<div style="width:9px;height:9px;border-radius:50%;background:' + hex + ';flex-shrink:0;"></div>' +
-        '<span style="flex:1;font-weight:700;font-size:12px;color:' + hex + '">' + U.escapeHtml(result.teamName) + '</span>' +
-        '<div style="display:flex;gap:4px;align-items:center;"><span style="font-size:8px;color:var(--mut);">STAT PTS</span>' +
-        '<input type="number" value="' + (result.statPts  || 0) + '" class="pr-inp he-pts-inp" style="width:50px;" data-ri="' + ri + '" id="he-stat-'   + ri + '"/></div>' +
-        '<div style="display:flex;gap:4px;align-items:center;"><span style="font-size:8px;color:var(--mut);">PLACE PTS</span>' +
-        '<input type="number" value="' + (result.placePts || 0) + '" class="pr-inp he-plc-inp" style="width:50px;" data-ri="' + ri + '" id="he-plcpts-' + ri + '"/></div>' +
+        '<span style="flex:1;font-weight:700;font-size:12px;color:' + hex + '">' + U.escapeHtml(result.teamName) + ' <span style="font-size:9px;color:var(--mut);">' + (ri === 0 ? 'Win' : U.ordinal(ri + 1)) + '</span></span>' +
+        '<div style="display:flex;gap:4px;align-items:center;"><span style="font-size:8px;color:var(--mut);">STAT</span>' +
+        '<span class="pr-inp" style="width:46px;display:inline-block;text-align:center;" id="he-stat-' + ri + '">' + statPts + '</span></div>' +
+        '<div style="display:flex;gap:4px;align-items:center;"><span style="font-size:8px;color:var(--mut);">PLACE</span>' +
+        '<span class="pr-inp" style="width:46px;display:inline-block;text-align:center;" id="he-plc-' + ri + '">' + placePts + '</span></div>' +
         '<div style="text-align:right;min-width:44px;border-left:1px solid rgba(255,255,255,.08);padding-left:8px;">' +
-          '<div class="he-total" style="font-family:var(--fd);font-size:14px;font-weight:900;" id="he-total-' + ri + '">' + (result.pts || 0) + '</div>' +
+          '<div class="he-total" style="font-family:var(--fd);font-size:14px;font-weight:900;" id="he-total-' + ri + '">' + (statPts + placePts) + '</div>' +
           '<div style="font-size:8px;color:var(--mut);">total</div>' +
         '</div>' +
       '</div>' +
@@ -350,42 +374,56 @@ window.BWO_HISTORY = (function () {
     var game    = history[_editIdx];
     if (!game) return;
 
+    var rules        = state.pointRules     || {};
+    var placementPts = state.placementRules || [50, 30, 20, 10, 5, 3, 2, 1];
+
     /* Update map name */
     var mapInp = document.getElementById('he-map');
     if (mapInp) game.mapName = mapInp.value;
 
-    /* Collect new player stats from inputs */
-    var newStats = U.deepClone(state.playerStats || {});
-    var rules    = state.pointRules || {};
-
+    /* Collect this game's per-player Finals/Beds from the editor inputs */
+    var gameStats = U.deepClone(game.playerStats || {});
     document.querySelectorAll('.he-stat-inp').forEach(function (inp) {
       var name = inp.getAttribute('data-name');
       var key  = inp.getAttribute('data-key');
       if (!name || !key) return;
-      if (!newStats[name]) newStats[name] = { kills: 0, deaths: 0, finals: 0, bedbreaks: 0, points: 0 };
-      newStats[name][key] = parseInt(inp.value) || 0;
+      if (!gameStats[name]) gameStats[name] = { finals: 0, bedbreaks: 0, points: 0 };
+      gameStats[name][key] = parseInt(inp.value) || 0;
     });
-
-    /* Recalculate player point totals */
-    Object.keys(newStats).forEach(function (name) {
-      var s = newStats[name];
+    Object.keys(gameStats).forEach(function (name) {
+      var s = gameStats[name];
       s.points = Math.max(0, Math.round(
-        (s.kills     || 0) * (rules.kills     || 0) +
-        (s.deaths    || 0) * (rules.deaths    || 0) +
-        (s.finals    || 0) * (rules.finals    || 0) +
-        (s.bedbreaks || 0) * (rules.bedbreaks || 0)
+        (s.finals || 0) * (rules.finals || 0) + (s.bedbreaks || 0) * (rules.bedbreaks || 0)
       ));
     });
+    game.playerStats = gameStats;
 
-    /* Update game results from editor rows */
-    var sortedIds = _editSortedResults.map(function (r) { return r.teamId; });
-
-    game.results = game.results.map(function (r) {
-      var ri     = sortedIds.indexOf(r.teamId);
-      var stat   = parseFloat((document.getElementById('he-stat-'   + ri) || { value: r.statPts  || 0 }).value) || 0;
-      var place  = parseFloat((document.getElementById('he-plcpts-' + ri) || { value: r.placePts || 0 }).value) || 0;
-      var placement = ri >= 0 ? ri + 1 : (r.placement || 1);
-      return Object.assign({}, r, { pts: stat + place, statPts: stat, placePts: place, placement });
+    /* Rebuild each result from the drag order + the team's stat snapshot */
+    var orderedIds = _editSortedResults.map(function (r) { return r.teamId; });
+    game.results = (game.results || []).map(function (r) {
+      var ri    = orderedIds.indexOf(r.teamId);
+      var place = ri >= 0 ? ri + 1 : (r.placement || 1);
+      var team  = ST.getTeamById(state, r.teamId);
+      var finals = 0, beds = 0;
+      (team ? team.players || [] : []).forEach(function (p) {
+        var s = gameStats[U.getPlayerName(p)] || {};
+        finals += (s.finals || 0);
+        beds   += (s.bedbreaks || 0);
+      });
+      var finalsPts = Math.round(finals * (rules.finals    || 0));
+      var bedsPts   = Math.round(beds   * (rules.bedbreaks || 0));
+      var statPts   = finalsPts + bedsPts;
+      var placePts  = ri >= 0 ? (placementPts[ri] || 0) : (r.placePts || 0);
+      return Object.assign({}, r, {
+        finals:    finals,
+        beds:      beds,
+        finalsPts: finalsPts,
+        bedsPts:   bedsPts,
+        statPts:   statPts,
+        placePts:  placePts,
+        pts:       statPts + placePts,
+        placement: place,
+      });
     });
 
     /* Recompute team totals from entire history */
@@ -401,7 +439,7 @@ window.BWO_HISTORY = (function () {
       });
     });
 
-    ST.update({ gameHistory: history, namedTeams: teams, playerStats: newStats });
+    ST.update({ gameHistory: history, namedTeams: teams });
     cancelGameEditor();
     UI.notify('Game ' + game.gameNumber + ' updated!');
   }

@@ -216,8 +216,8 @@ window.BWO_ADMIN_UI = (function () {
         SETUP.renderQueue(state);
         break;
       case 'scores':
-        STATS.renderScoresSummary(state);
-        STATS.renderPStatTable(state);
+        STATS.renderGameScoring(state);
+        STATS.renderTotals(state);
         STATS.renderPlacementRules(state);
         STATS.loadPR(state);
         break;
@@ -384,8 +384,8 @@ window.BWO_ADMIN_UI = (function () {
     SETUP.renderSlots(state);
 
     _setBootProgress(55, 'Rendering scores…');
-    STATS.renderScoresSummary(state);
-    STATS.renderPStatTable(state);
+    STATS.renderGameScoring(state);
+    STATS.renderTotals(state);
     STATS.renderPlacementRules(state);
     STATS.loadPR(state);
 

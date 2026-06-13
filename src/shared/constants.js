@@ -109,7 +109,7 @@ window.BWO_CONST = (function () {
     brbSubtext:        'Be Right Back',
     transition:        'slide',
     mapTransition:     'slot',
-    winnerDisplaySecs: 6,      // seconds on winner screen before standings
+    winnerDisplaySecs: 10,     // seconds on winner screen before standings
     startingCycleSecs: 4,      // seconds per team on the starting screen
   };
 

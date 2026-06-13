@@ -332,13 +332,13 @@ html, body {
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 #map-screen  { display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; }
 .map-inner   { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; width: 100%; }
-.map-lbl     { font-family: var(--fd); font-size: .9vw; font-weight: 900; letter-spacing: .5vw; color: rgba(255,255,255,.32); text-transform: uppercase; margin-bottom: 2.5vh; animation: fadeUp .5s ease both; }
+.map-lbl     { font-family: var(--fd); font-size: 1.3vw; font-weight: 900; letter-spacing: .6vw; color: #fff; text-transform: uppercase; margin-bottom: 2.5vh; text-shadow: 0 0 18px var(--acc), 0 0 36px var(--acc2); animation: fadeUp .5s ease both; }
 
 #map-window  { width: 60vw; height: 38vh; border: 2px solid var(--acc); border-radius: 14px; overflow: hidden; box-shadow: 0 0 60px var(--glow); position: relative; animation: none; box-shadow: 0 0 28px var(--b1), 0 0 60px var(--glow); }
 #map-strip   { position: absolute; top: 0; left: 0; width: 100%; }
 .map-slide   { width: 100%; position: absolute; left: 0; }
 .map-slide img        { width: 100%; height: 100%; object-fit: cover; display: block; }
-.map-slide-name       { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(4,6,16,.94)); padding: 2vh 2vw; font-family: var(--fd); font-size: 2.4vw; font-weight: 900; color: #fff; text-shadow: 0 0 20px currentColor; }
+.map-slide-name       { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(4,6,16,.96)); padding: 2vh 2vw; font-family: var(--fd); font-size: 2.6vw; font-weight: 900; letter-spacing: .12vw; color: #fff; text-shadow: 0 2px 4px #000, 0 0 22px currentColor; }
 .map-no-img           { width: 100%; height: 100%; background: #111; display: flex; align-items: center; justify-content: center; font-size: 3vw; color: #333; }
 
 #map-result  { margin-top: 2.5vh; font-family: var(--fd); font-size: 1.7vw; font-weight: 900; letter-spacing: .4vw; color: var(--acc2); text-shadow: 0 0 24px currentColor; text-align: center; opacity: 0; transition: opacity .5s; }

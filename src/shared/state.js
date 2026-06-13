@@ -64,15 +64,14 @@ window.BWO_STATE = (function () {
       gameHistory:     [],   // [{gameNumber, mapName, results:[...]}]
 
       /* ── Scoring ───────────────────────────────────────────── */
+      /* Stat points: Finals = final kills, Beds = bed breaks. (No kills/deaths.) */
       pointRules: {
-        kills:     1,
-        deaths:    0,
-        finals:    2,
-        bedbreaks: 3,
+        finals:    4,   // points per final kill
+        bedbreaks: 7,   // points per bed broken
       },
-      /** Bonus points per placement position (index 0 = 1st place) */
-      placementRules: [10, 7, 5, 4, 3, 2, 1, 0],
-      /** Per-player stats for the current game: { "IGN": {kills, deaths, finals, bedbreaks, points} } */
+      /** Bonus points per placement position (index 0 = 1st place / "Win") */
+      placementRules: [50, 30, 20, 10, 5, 3, 2, 1],
+      /** Per-player stats for the CURRENT game: { "IGN": {finals, bedbreaks, points} } */
       playerStats: {},
 
       /* ── Timer ─────────────────────────────────────────────── */
@@ -224,6 +223,7 @@ window.BWO_STATE = (function () {
       color,
       teamId:     null,   // ID of the assigned named team
       score:      0,      // Stat points earned this game
+      placement:  0,      // Preselected finishing place (0 = unset, 1 = 1st/Win)
       eliminated: false,
       hasBed:     true,
     };
@@ -289,11 +289,11 @@ window.BWO_STATE = (function () {
   /**
    * computeTeamScore(team, playerStats, rules) → number
    * Calculates the total stat-based score for a team this game
-   * by summing each player's kills/deaths/finals/bedbreaks.
+   * by summing each player's finals (final kills) + bedbreaks (beds).
    *
    * @param {object} team        - Named team object
-   * @param {object} playerStats - { "IGN": { kills, deaths, finals, bedbreaks } }
-   * @param {object} rules       - { kills, deaths, finals, bedbreaks } point values
+   * @param {object} playerStats - { "IGN": { finals, bedbreaks } }
+   * @param {object} rules       - { finals, bedbreaks } point values
    * @returns {number}
    */
   function computeTeamScore(team, playerStats, rules) {
@@ -304,10 +304,8 @@ window.BWO_STATE = (function () {
       if (!name) return;
       var s = (playerStats || {})[name];
       if (!s) return;
-      total += (s.kills     || 0) * (rules.kills     || 0);
       total += (s.finals    || 0) * (rules.finals    || 0);
       total += (s.bedbreaks || 0) * (rules.bedbreaks || 0);
-      total += (s.deaths    || 0) * (rules.deaths    || 0);
     });
     return Math.max(0, Math.round(total));
   }

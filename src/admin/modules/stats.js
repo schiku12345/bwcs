@@ -1,19 +1,25 @@
 /**
- * stats.js — Admin Stats & Scores Module
+ * stats.js — Admin Scores & Stats Module
  *
- * Manages the "Scores & Stats" page.
- * Responsibilities:
- *   • Display a live points-preview per team (stat pts + estimated placement bonus)
- *   • Track per-player kill/death/final/bedbreak stats
- *   • Import stats from a CSV file
- *   • Manage Kill/Death point rules
- *   • Manage Placement bonus point rules (1st–8th place)
+ * Manages the "Scores & Stats" page. Rebuilt around a spreadsheet-style
+ * workflow that mirrors the tournament TSV:
+ *
+ *   1. THIS GAME — Scoring
+ *      A per-team table. Enter each player's Finals (final kills) and
+ *      Beds (beds broken), and pick each team's placement (Win / 2nd / …).
+ *      The chosen placements carry straight into Finish Game.
+ *
+ *   2. TOTAL STATS — cumulative Finals/Beds per player across all
+ *      finished games, plus per-team placement counts.
+ *
+ *   3. TOTAL POINTS — per-team points breakdown (Finals pts, Beds pts,
+ *      Placement pts, TOTAL) — matches the live standings.
+ *
+ * Kills and deaths are NOT tracked — only final kills and bed breaks.
  *
  * DESIGN NOTES:
- *   • The old "score editor" (raw score input per slot) is replaced with a
- *     read-only preview that shows how stats will translate to points.
- *   • Event delegation is used on the stats table so the 1-char bug is avoided.
- *   • silentUpdate() while typing, full update() on blur.
+ *   • Event delegation on the stat inputs avoids the 1-char focus bug.
+ *   • silentUpdate() is not needed here — number inputs commit on change.
  *
  * DEPENDS ON: BWO_STATE, BWO_UTILS, BWO_CONST, BWO_ADMIN_UI
  * EXPORTS: window.BWO_STATS
@@ -33,148 +39,29 @@ window.BWO_STATS = (function () {
 
 
   /* ═══════════════════════════════════════════════════════════════
-   * POINTS PREVIEW
+   * SHARED HELPERS
    * ═══════════════════════════════════════════════════════════════ */
 
   /**
-   * renderScoresSummary(state) → void
-   * Renders the live points-preview cards — one per active slot.
-   * Shows:
-   *   • Team name + colour
-   *   • Stat points (from player kills/deaths/etc.)
-   *   • Estimated placement bonus (based on slot order as a proxy)
-   *   • Combined total
-   *   • Per-player stat breakdown
-   *
-   * @param {object} state - Current global state
+   * _calcPlayerPts(stats, rules) → number
+   * Points for one player = finals×rule + beds×rule.
    */
-  function renderScoresSummary(state) {
-    var el = document.getElementById('sc-summary');
-    if (!el) return;
-
-    var slots = ST.getActiveSlots(state);
-    if (!slots.length) {
-      el.innerHTML = '<p class="help">Set up game slots in Game Setup first.</p>';
-      return;
-    }
-
-    var rules        = state.pointRules      || {};
-    var placementPts = state.placementRules  || [10, 7, 5, 4, 3, 2, 1, 0];
-
-    el.innerHTML = '<div style="display:flex;flex-direction:column;gap:6px;">' +
-      slots.map(function (slot, si) {
-        var hex     = C.COLORS[slot.color] || '#fff';
-        var team    = ST.getTeamById(state, slot.teamId);
-        var tname   = team ? team.name : slot.color;
-        var statPts = team ? ST.computeTeamScore(team, state.playerStats, rules) : 0;
-        var bonus   = placementPts[si] || 0;
-        var total   = statPts + bonus;
-
-        /* Per-player breakdown */
-        var players = team
-          ? (team.players || []).filter(function (p) { return U.getPlayerName(p).trim(); })
-          : [];
-
-        var playerBreakdown = players.map(function (p) {
-          var name = U.getPlayerName(p);
-          var ps   = (state.playerStats || {})[name] || {};
-          return name +
-            ' (K:' + (ps.kills     || 0) +
-            ' D:'  + (ps.deaths    || 0) +
-            ' FK:' + (ps.finals    || 0) +
-            ' BB:' + (ps.bedbreaks || 0) + ')';
-        }).join(' · ');
-
-        return '<div style="background:rgba(255,255,255,.04);border:1px solid ' + hex + '28;border-radius:8px;padding:9px 12px;">' +
-          '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">' +
-            '<div style="width:8px;height:8px;border-radius:50%;background:' + hex + ';flex-shrink:0;"></div>' +
-            '<span style="font-weight:700;font-size:12px;color:' + hex + ';flex:1;">' + U.escapeHtml(tname) + '</span>' +
-            '<span style="font-family:var(--fd);font-size:9px;color:var(--mut);">est. place #' + (si + 1) + '</span>' +
-            '<span style="font-family:var(--fd);font-size:18px;font-weight:900;color:' + hex + ';">' + total + '</span>' +
-          '</div>' +
-          '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
-            '<span style="font-size:9px;color:var(--acc2);font-weight:700;">Stat: ' + statPts + '</span>' +
-            '<span style="font-size:9px;color:var(--ylw);font-weight:700;">+ Placement: +' + bonus + '</span>' +
-            (playerBreakdown ? '<span style="font-size:9px;color:var(--mut);">' + U.escapeHtml(playerBreakdown) + '</span>' : '') +
-          '</div>' +
-        '</div>';
-      }).join('') +
-    '</div>';
-  }
-
-
-  /* ═══════════════════════════════════════════════════════════════
-   * PLAYER STATS TABLE
-   * ═══════════════════════════════════════════════════════════════ */
-
-  /**
-   * renderPStatTable(state) → void
-   * Rebuilds the player-stats table — one row per player across all slots.
-   * Uses event delegation so typing doesn't destroy focus.
-   *
-   * @param {object} state - Current global state
-   */
-  function renderPStatTable(state) {
-    var el = document.getElementById('pstat-table');
-    if (!el) return;
-
-    var players = _getAllPlayers(state);
-    if (!players.length) {
-      el.innerHTML = '<p class="help">Assign teams to game slots to see player rows here.</p>';
-      el.onchange  = null;
-      return;
-    }
-
-    var rules = state.pointRules || {};
-    var stats  = state.playerStats || {};
-
-    var headerHTML =
-      '<div class="pstat-hdr">' +
-        '<div class="pstat-lbl">Player</div>' +
-        '<div class="pstat-lbl" title="Auto-calculated from rules">PTS</div>' +
-        '<div class="pstat-lbl">K</div>' +
-        '<div class="pstat-lbl">D</div>' +
-        '<div class="pstat-lbl">FK</div>' +
-        '<div class="pstat-lbl">BB</div>' +
-      '</div>';
-
-    var rowsHTML = players.map(function (p) {
-      var s   = stats[p.name] || {};
-      var hex = C.COLORS[p.color] || '#aaa';
-      var pts = _calcPlayerPts(s, rules);
-
-      return '<div class="pstat-row">' +
-        '<div class="pstat-name" style="color:' + hex + '" title="' + U.escapeHtml(p.name) + '">' + U.escapeHtml(p.name) + '</div>' +
-        '<div class="pstat-pts-ro">' + pts + '</div>' +
-        '<input class="pstat-inp" type="number" min="0" value="' + (s.kills     || 0) + '" data-player="' + U.escapeHtml(p.name) + '" data-key="kills"/>' +
-        '<input class="pstat-inp" type="number" min="0" value="' + (s.deaths    || 0) + '" data-player="' + U.escapeHtml(p.name) + '" data-key="deaths"/>' +
-        '<input class="pstat-inp" type="number" min="0" value="' + (s.finals    || 0) + '" data-player="' + U.escapeHtml(p.name) + '" data-key="finals"/>' +
-        '<input class="pstat-inp" type="number" min="0" value="' + (s.bedbreaks || 0) + '" data-player="' + U.escapeHtml(p.name) + '" data-key="bedbreaks"/>' +
-      '</div>';
-    }).join('');
-
-    el.innerHTML = headerHTML + rowsHTML;
-
-    /* Delegated change handler — update a single stat field */
-    el.onchange = function (ev) {
-      var inp = ev.target;
-      if (!inp.dataset.player || !inp.dataset.key) return;
-      _updateSingleStat(inp.dataset.player, inp.dataset.key, parseInt(inp.value) || 0);
-    };
+  function _calcPlayerPts(stats, rules) {
+    stats = stats || {};
+    rules = rules || {};
+    return Math.max(0, Math.round(
+      (stats.finals    || 0) * (rules.finals    || 0) +
+      (stats.bedbreaks || 0) * (rules.bedbreaks || 0)
+    ));
   }
 
   /**
-   * _getAllPlayers(state) → [{name, color}]
-   * Collects all unique player names from all active slots,
-   * annotated with their team's slot colour.
-   *
-   * @param {object} state
-   * @returns {{name:string, color:string}[]}
+   * _getAllPlayers(state) → [{name, color, teamId}]
+   * Every unique player across all active slots, annotated with colour.
    */
   function _getAllPlayers(state) {
-    var seen    = {};
-    var result  = [];
-
+    var seen = {};
+    var out  = [];
     ST.getActiveSlots(state).forEach(function (slot) {
       var team = ST.getTeamById(state, slot.teamId);
       if (!team) return;
@@ -182,77 +69,330 @@ window.BWO_STATS = (function () {
         var name = U.getPlayerName(p).trim();
         if (name && !seen[name]) {
           seen[name] = true;
-          result.push({ name, color: slot.color });
+          out.push({ name: name, color: slot.color, teamId: team.id });
         }
       });
     });
-
-    return result;
+    return out;
   }
 
   /**
-   * _calcPlayerPts(stats, rules) → number
-   * Computes auto-calculated points for one player given their stats.
-   *
-   * @param {object} stats - { kills, deaths, finals, bedbreaks }
-   * @param {object} rules - { kills, deaths, finals, bedbreaks }
-   * @returns {number}
+   * _cumulativeStats(state) → { IGN: {finals, beds} }
+   * Sums each player's finals/beds across every FINISHED game
+   * (from the per-game snapshot stored on each history entry).
    */
-  function _calcPlayerPts(stats, rules) {
-    return Math.max(0, Math.round(
-      (stats.kills     || 0) * (rules.kills     || 0) +
-      (stats.deaths    || 0) * (rules.deaths    || 0) +
-      (stats.finals    || 0) * (rules.finals    || 0) +
-      (stats.bedbreaks || 0) * (rules.bedbreaks || 0)
-    ));
+  function _cumulativeStats(state) {
+    var totals = {};
+    (state.gameHistory || []).forEach(function (g) {
+      var ps = g.playerStats || {};
+      Object.keys(ps).forEach(function (n) {
+        if (!totals[n]) totals[n] = { finals: 0, beds: 0 };
+        totals[n].finals += (ps[n].finals    || 0);
+        totals[n].beds   += (ps[n].bedbreaks || 0);
+      });
+    });
+    return totals;
+  }
+
+  /**
+   * _placementCounts(state) → { teamId: { 1:n, 2:n, … } }
+   * How many times each team finished in each position.
+   */
+  function _placementCounts(state) {
+    var counts = {};
+    (state.gameHistory || []).forEach(function (g) {
+      (g.results || []).forEach(function (r) {
+        if (!r.teamId || !r.placement) return;
+        counts[r.teamId] = counts[r.teamId] || {};
+        counts[r.teamId][r.placement] = (counts[r.teamId][r.placement] || 0) + 1;
+      });
+    });
+    return counts;
+  }
+
+  /**
+   * _pointsBreakdown(state) → { teamId: {finalsPts, bedsPts, placePts, total, games} }
+   * Exact per-team point split summed from finished-game results.
+   */
+  function _pointsBreakdown(state) {
+    var bd = {};
+    (state.gameHistory || []).forEach(function (g) {
+      (g.results || []).forEach(function (r) {
+        if (!r.teamId) return;
+        if (!bd[r.teamId]) bd[r.teamId] = { finalsPts: 0, bedsPts: 0, placePts: 0, total: 0, games: 0 };
+        bd[r.teamId].finalsPts += (r.finalsPts || 0);
+        bd[r.teamId].bedsPts   += (r.bedsPts   || 0);
+        bd[r.teamId].placePts  += (r.placePts  || 0);
+        bd[r.teamId].total     += (r.pts       || 0);
+        bd[r.teamId].games     += 1;
+      });
+    });
+    return bd;
+  }
+
+
+  /* ═══════════════════════════════════════════════════════════════
+   * 1. THIS GAME — SCORING SPREADSHEET
+   * ═══════════════════════════════════════════════════════════════ */
+
+  /**
+   * renderGameScoring(state) → void
+   * Builds the per-team scoring table for the current game:
+   * a placement selector per team + Finals/Beds inputs per player.
+   *
+   * @param {object} state
+   */
+  function renderGameScoring(state) {
+    var el = document.getElementById('sc-game-table');
+    if (!el) return;
+
+    var slots = ST.getActiveSlots(state);
+    if (!slots.length) {
+      el.innerHTML  = '<p class="help">Set up game slots in Game Setup first.</p>';
+      el.onchange   = null;
+      el.oninput    = null;
+      return;
+    }
+
+    var rules        = state.pointRules     || {};
+    var placementPts = state.placementRules || [];
+    var nSlots       = slots.length;
+    var allSlots     = state.slots || [];
+
+    el.innerHTML = slots.map(function (slot) {
+      var origIdx  = allSlots.indexOf(slot);
+      var hex      = C.COLORS[slot.color] || '#fff';
+      var team     = ST.getTeamById(state, slot.teamId);
+      var tname    = team ? team.name : slot.color;
+      var statPts  = team ? ST.computeTeamScore(team, state.playerStats, rules) : 0;
+      var rank     = slot.placement || 0;
+      var placePts = rank > 0 ? (placementPts[rank - 1] || 0) : 0;
+      var total    = statPts + placePts;
+
+      /* Placement <select> — Win / 2nd / 3rd … up to the team count */
+      var opts = '<option value="0">— place —</option>';
+      for (var r = 1; r <= nSlots; r++) {
+        opts += '<option value="' + r + '"' + (r === rank ? ' selected' : '') + '>' +
+          (r === 1 ? 'Win (1st)' : U.ordinal(r)) + '</option>';
+      }
+
+      var players = team
+        ? (team.players || []).filter(function (p) { return U.getPlayerName(p).trim(); })
+        : [];
+
+      var playerRows = players.map(function (p) {
+        var name = U.getPlayerName(p);
+        var ps   = (state.playerStats || {})[name] || {};
+        return '<div class="sc-prow">' +
+          '<div class="sc-pname" title="' + U.escapeHtml(name) + '">' + U.escapeHtml(name) + '</div>' +
+          '<input class="pstat-inp sc-stat" type="number" min="0" value="' + (ps.finals    || 0) + '" data-player="' + U.escapeHtml(name) + '" data-key="finals"/>' +
+          '<input class="pstat-inp sc-stat" type="number" min="0" value="' + (ps.bedbreaks || 0) + '" data-player="' + U.escapeHtml(name) + '" data-key="bedbreaks"/>' +
+          '<div class="sc-ppts">' + _calcPlayerPts(ps, rules) + '</div>' +
+        '</div>';
+      }).join('') || '<div class="sc-prow"><div class="sc-pname" style="color:var(--mut);">No players on this team.</div></div>';
+
+      return '<div class="sc-team" style="border-color:' + hex + '33;">' +
+        '<div class="sc-team-hdr">' +
+          '<div class="sc-dot" style="background:' + hex + '"></div>' +
+          '<span class="sc-tname" style="color:' + hex + '">' + U.escapeHtml(tname) + '</span>' +
+          '<select class="sc-place-sel" data-si="' + origIdx + '" title="Finishing place">' + opts + '</select>' +
+          '<span class="sc-ttot" style="color:' + hex + '" title="Stat + placement points">' + total + '</span>' +
+        '</div>' +
+        '<div class="sc-col-hdr">' +
+          '<div class="sc-pname">Player</div>' +
+          '<div class="sc-lbl" title="Final kills">Finals</div>' +
+          '<div class="sc-lbl" title="Beds broken">Beds</div>' +
+          '<div class="sc-lbl">Pts</div>' +
+        '</div>' +
+        playerRows +
+        '<div class="sc-team-foot">Stat <strong>' + statPts + '</strong> + Place <strong>' + placePts + '</strong> = <strong style="color:' + hex + '">' + total + '</strong></div>' +
+      '</div>';
+    }).join('');
+
+    /* Delegated: player Finals/Beds inputs */
+    el.onchange = function (ev) {
+      var t = ev.target;
+      if (t.classList.contains('sc-stat') && t.dataset.player && t.dataset.key) {
+        _updateSingleStat(t.dataset.player, t.dataset.key, parseInt(t.value) || 0);
+        return;
+      }
+      if (t.classList.contains('sc-place-sel')) {
+        setSlotPlacement(parseInt(t.getAttribute('data-si')), parseInt(t.value) || 0);
+      }
+    };
+  }
+
+  /**
+   * setSlotPlacement(slotIdx, rank) → void
+   * Sets a team's preselected finishing place. Ranks are kept unique —
+   * assigning a rank already used by another team clears that other team.
+   *
+   * @param {number} slotIdx - Index in state.slots
+   * @param {number} rank    - 1 = 1st/Win, 0 = unset
+   */
+  function setSlotPlacement(slotIdx, rank) {
+    var state = ST.get();
+    var slots = U.deepClone(state.slots || []);
+    if (!slots[slotIdx]) return;
+    rank = parseInt(rank) || 0;
+    if (rank > 0) {
+      slots.forEach(function (s, i) {
+        if (i !== slotIdx && s.placement === rank) s.placement = 0;
+      });
+    }
+    slots[slotIdx].placement = rank;
+    ST.update({ slots: slots });
   }
 
   /**
    * _updateSingleStat(playerName, key, value) → void
-   * Updates one stat field for one player and recalculates their points.
-   *
-   * @param {string} playerName
-   * @param {string} key   - 'kills' | 'deaths' | 'finals' | 'bedbreaks'
-   * @param {number} value
+   * Updates one stat field (finals|bedbreaks) for a player + recalcs points.
    */
   function _updateSingleStat(playerName, key, value) {
-    var state  = ST.get();
-    var stats  = U.deepClone(state.playerStats || {});
-    var rules  = state.pointRules || {};
-
-    if (!stats[playerName]) {
-      stats[playerName] = { kills: 0, deaths: 0, finals: 0, bedbreaks: 0, points: 0 };
-    }
-
-    stats[playerName][key]    = value;
-    stats[playerName].points  = _calcPlayerPts(stats[playerName], rules);
-
+    var state = ST.get();
+    var stats = U.deepClone(state.playerStats || {});
+    var rules = state.pointRules || {};
+    if (!stats[playerName]) stats[playerName] = { finals: 0, bedbreaks: 0, points: 0 };
+    stats[playerName][key]   = value;
+    stats[playerName].points = _calcPlayerPts(stats[playerName], rules);
     ST.update({ playerStats: stats });
   }
 
   /**
    * clearStats() → void
-   * Wipes all player stats for the current game.
+   * Wipes the current game's player stats and clears preselected placements.
    */
   function clearStats() {
-    ST.update({ playerStats: {} });
-    UI.notify('Stats cleared');
+    var slots = U.deepClone(ST.get().slots || []);
+    slots.forEach(function (s) { s.placement = 0; });
+    ST.update({ playerStats: {}, slots: slots });
+    UI.notify('This game cleared');
   }
 
 
   /* ═══════════════════════════════════════════════════════════════
-   * CSV IMPORT
+   * 2. TOTAL STATS  +  3. TOTAL POINTS
+   * ═══════════════════════════════════════════════════════════════ */
+
+  /**
+   * renderTotals(state) → void
+   * Renders both the cumulative Total Stats tables and the Total Points
+   * breakdown table from finished-game history.
+   */
+  function renderTotals(state) {
+    _renderTotalStats(state);
+    _renderTotalPoints(state);
+  }
+
+  function _renderTotalStats(state) {
+    var el = document.getElementById('sc-total-stats');
+    if (!el) return;
+
+    var history = state.gameHistory || [];
+    if (!history.length) {
+      el.innerHTML = '<p class="help">No finished games yet. Stats appear here after you Finish a game.</p>';
+      return;
+    }
+
+    /* ── Per-player cumulative finals/beds ── */
+    var cum     = _cumulativeStats(state);
+    var roster  = _getAllPlayers(state);
+    /* Map name → colour from current roster (fallback grey) */
+    var colourOf = {};
+    roster.forEach(function (p) { colourOf[p.name] = C.COLORS[p.color] || '#aaa'; });
+
+    var names = Object.keys(cum).sort(function (a, b) {
+      return (cum[b].finals + cum[b].beds) - (cum[a].finals + cum[a].beds);
+    });
+
+    var playerRows = names.map(function (n) {
+      var s   = cum[n];
+      var hex = colourOf[n] || '#aaa';
+      return '<div class="sc-trow">' +
+        '<div class="sc-pname" style="color:' + hex + '" title="' + U.escapeHtml(n) + '">' + U.escapeHtml(n) + '</div>' +
+        '<div class="sc-tcell">' + s.finals + '</div>' +
+        '<div class="sc-tcell">' + s.beds   + '</div>' +
+      '</div>';
+    }).join('');
+
+    /* ── Per-team placement counts ── */
+    var counts    = _placementCounts(state);
+    var standings = ST.getStandings(state);
+    var maxPlace  = 4;
+    Object.keys(counts).forEach(function (tid) {
+      Object.keys(counts[tid]).forEach(function (k) { maxPlace = Math.max(maxPlace, parseInt(k)); });
+    });
+
+    var placeHead = '';
+    for (var r = 1; r <= maxPlace; r++) placeHead += '<div class="sc-tcell sc-lbl">' + (r === 1 ? 'Win' : U.ordinal(r)) + '</div>';
+
+    var teamRows = standings.map(function (team) {
+      var slot = (state.slots || []).find(function (s) { return s.teamId === team.id; });
+      var hex  = slot ? (C.COLORS[slot.color] || '#aaa') : '#aaa';
+      var cc   = counts[team.id] || {};
+      var cells = '';
+      for (var r = 1; r <= maxPlace; r++) cells += '<div class="sc-tcell">' + (cc[r] || 0) + '</div>';
+      return '<div class="sc-trow" style="grid-template-columns:1fr repeat(' + maxPlace + ',42px);">' +
+        '<div class="sc-pname" style="color:' + hex + '">' + U.escapeHtml(team.name) + '</div>' +
+        cells +
+      '</div>';
+    }).join('');
+
+    el.innerHTML =
+      '<div class="sc-sub">Per-player — final kills &amp; beds</div>' +
+      '<div class="sc-trow sc-thdr"><div class="sc-pname">Player</div><div class="sc-tcell sc-lbl">Finals</div><div class="sc-tcell sc-lbl">Beds</div></div>' +
+      playerRows +
+      '<div class="sc-sub" style="margin-top:10px;">Per-team — placement counts</div>' +
+      '<div class="sc-trow sc-thdr" style="grid-template-columns:1fr repeat(' + maxPlace + ',42px);"><div class="sc-pname">Team</div>' + placeHead + '</div>' +
+      teamRows;
+  }
+
+  function _renderTotalPoints(state) {
+    var el = document.getElementById('sc-total-points');
+    if (!el) return;
+
+    var history = state.gameHistory || [];
+    if (!history.length) {
+      el.innerHTML = '<p class="help">No finished games yet. Point totals appear here after you Finish a game.</p>';
+      return;
+    }
+
+    var bd        = _pointsBreakdown(state);
+    var standings = ST.getStandings(state);
+
+    var rows = standings.map(function (team) {
+      var slot = (state.slots || []).find(function (s) { return s.teamId === team.id; });
+      var hex  = slot ? (C.COLORS[slot.color] || '#aaa') : '#aaa';
+      var b    = bd[team.id] || { finalsPts: 0, bedsPts: 0, placePts: 0, total: 0 };
+      return '<div class="sc-trow" style="grid-template-columns:1fr 54px 54px 60px 60px;">' +
+        '<div class="sc-pname" style="color:' + hex + '">' + U.escapeHtml(team.name) + '</div>' +
+        '<div class="sc-tcell">' + b.finalsPts + '</div>' +
+        '<div class="sc-tcell">' + b.bedsPts   + '</div>' +
+        '<div class="sc-tcell">' + b.placePts  + '</div>' +
+        '<div class="sc-tcell" style="color:#fff;font-weight:900;">' + (b.total || team.totalPoints || 0) + '</div>' +
+      '</div>';
+    }).join('');
+
+    el.innerHTML =
+      '<div class="sc-trow sc-thdr" style="grid-template-columns:1fr 54px 54px 60px 60px;">' +
+        '<div class="sc-pname">Team</div>' +
+        '<div class="sc-tcell sc-lbl">Finals</div>' +
+        '<div class="sc-tcell sc-lbl">Beds</div>' +
+        '<div class="sc-tcell sc-lbl">Place</div>' +
+        '<div class="sc-tcell sc-lbl">Total</div>' +
+      '</div>' +
+      rows;
+  }
+
+
+  /* ═══════════════════════════════════════════════════════════════
+   * CSV IMPORT  (IGN, FINALS, BEDS)
    * ═══════════════════════════════════════════════════════════════ */
 
   /**
    * handleStatCSVFile(inputElement) → void
-   * Reads the selected stats CSV and parses it.
-   * Shows a preview and enables the Apply button.
-   *
-   * CSV format: IGN, KILLS, DEATHS, FINALS, BEDBREAKS
-   * First row is treated as a header and skipped.
-   *
-   * @param {HTMLInputElement} inputElement
+   * Reads a stats CSV and shows a preview.
+   * Format: IGN, FINALS, BEDS  (first row treated as a header, skipped).
    */
   function handleStatCSVFile(inputElement) {
     var file = inputElement.files[0];
@@ -260,25 +400,21 @@ window.BWO_STATS = (function () {
 
     var reader = new FileReader();
     reader.onload = function (e) {
-      var rows  = U.parseCSVText(e.target.result);
-      var data  = {};
+      var rows = U.parseCSVText(e.target.result);
+      var data = {};
 
-      /* Skip header row (first row) */
       rows.slice(1).forEach(function (cols) {
         var name = cols[0];
         if (!name) return;
         data[name] = {
-          kills:     parseInt(cols[1]) || 0,
-          deaths:    parseInt(cols[2]) || 0,
-          finals:    parseInt(cols[3]) || 0,
-          bedbreaks: parseInt(cols[4]) || 0,
+          finals:    parseInt(cols[1]) || 0,
+          bedbreaks: parseInt(cols[2]) || 0,
           points:    0,
         };
       });
 
       _pendingCSV = data;
 
-      /* Show preview */
       var preview = document.getElementById('csv-stat-preview');
       if (preview) {
         preview.style.display = '';
@@ -286,7 +422,7 @@ window.BWO_STATS = (function () {
         preview.innerHTML = names.slice(0, 6).map(function (n) {
           var s = data[n];
           return '<div style="font-size:10px;padding:2px 0;">' +
-            U.escapeHtml(n) + ': ' + s.kills + 'K ' + s.finals + 'FK ' + s.bedbreaks + 'BB' +
+            U.escapeHtml(n) + ': ' + s.finals + ' Finals · ' + s.bedbreaks + ' Beds' +
           '</div>';
         }).join('') + (names.length > 6 ? '<div style="font-size:9px;color:var(--mut);">…and ' + (names.length - 6) + ' more</div>' : '');
       }
@@ -303,20 +439,19 @@ window.BWO_STATS = (function () {
 
   /**
    * applyStatCSV() → void
-   * Applies the pending CSV data to state, recalculating points.
-   * Called when user clicks "✓ Apply CSV".
+   * Applies the pending CSV data to the current game's player stats.
    */
   function applyStatCSV() {
     if (!_pendingCSV) return;
 
-    var state  = ST.get();
-    var stats  = U.deepClone(state.playerStats || {});
-    var rules  = state.pointRules || {};
+    var state = ST.get();
+    var stats = U.deepClone(state.playerStats || {});
+    var rules = state.pointRules || {};
 
     Object.keys(_pendingCSV).forEach(function (name) {
       var s = _pendingCSV[name];
-      stats[name] = s;
       s.points    = _calcPlayerPts(s, rules);
+      stats[name] = s;
     });
 
     ST.update({ playerStats: stats });
@@ -324,7 +459,6 @@ window.BWO_STATS = (function () {
 
     var applyBtn = document.getElementById('stat-csv-apply');
     if (applyBtn) applyBtn.style.display = 'none';
-
     var preview = document.getElementById('csv-stat-preview');
     if (preview) preview.style.display = 'none';
 
@@ -333,38 +467,26 @@ window.BWO_STATS = (function () {
 
 
   /* ═══════════════════════════════════════════════════════════════
-   * POINT RULES
+   * POINT RULES  (Finals / Beds)
    * ═══════════════════════════════════════════════════════════════ */
 
-  /**
-   * savePR() → void
-   * Reads the kill/death/final/bedbreak rule inputs and persists them.
-   */
   function savePR() {
-    function val(id) { return parseFloat(document.getElementById(id).value) || 0; }
+    function val(id) {
+      var el = document.getElementById(id);
+      return el ? (parseFloat(el.value) || 0) : 0;
+    }
     ST.update({
       pointRules: {
-        kills:     val('pr-kills'),
-        deaths:    val('pr-deaths'),
         finals:    val('pr-finals'),
         bedbreaks: val('pr-bedbreaks'),
       },
     });
   }
 
-  /**
-   * loadPR(state) → void
-   * Syncs the kill/death rule inputs from state.
-   * Skips fields currently being edited.
-   *
-   * @param {object} state
-   */
   function loadPR(state) {
     var r = state.pointRules || {};
-    _setIfUnfocused('pr-kills',     r.kills     || 0);
-    _setIfUnfocused('pr-deaths',    r.deaths    || 0);
-    _setIfUnfocused('pr-finals',    r.finals    || 0);
-    _setIfUnfocused('pr-bedbreaks', r.bedbreaks || 0);
+    _setIfUnfocused('pr-finals',    r.finals    != null ? r.finals    : 4);
+    _setIfUnfocused('pr-bedbreaks', r.bedbreaks != null ? r.bedbreaks : 7);
   }
 
 
@@ -374,34 +496,26 @@ window.BWO_STATS = (function () {
 
   /**
    * renderPlacementRules(state) → void
-   * Renders 8 editable placement-bonus inputs (1st through 8th place).
-   *
-   * @param {object} state
+   * Renders editable placement-bonus inputs (Win / 2nd / 3rd …).
    */
   function renderPlacementRules(state) {
     var el = document.getElementById('placement-rules-card');
     if (!el) return;
 
-    var rules = state.placementRules || [10, 7, 5, 4, 3, 2, 1, 0];
+    var rules = state.placementRules || [50, 30, 20, 10, 5, 3, 2, 1];
 
     el.innerHTML = rules.map(function (pts, i) {
+      var label = i === 0 ? 'Win (1st)' : U.ordinal(i + 1);
       return '<div class="pr-row">' +
-        '<div class="pr-label">' + U.ordinal(i + 1) + ' Place</div>' +
+        '<div class="pr-label">' + label + ' Place</div>' +
         '<input class="pr-inp" type="number" min="0" value="' + pts + '" oninput="BWO_STATS.savePlacementRule(' + i + ', +this.value)"/>' +
       '</div>';
     }).join('');
   }
 
-  /**
-   * savePlacementRule(index, value) → void
-   * Updates one placement-bonus value in state.
-   *
-   * @param {number} index - 0-based position (0 = 1st place)
-   * @param {number} value - Points to award
-   */
   function savePlacementRule(index, value) {
-    var state  = ST.get();
-    var rules  = (state.placementRules || [10, 7, 5, 4, 3, 2, 1, 0]).slice();
+    var state = ST.get();
+    var rules = (state.placementRules || [50, 30, 20, 10, 5, 3, 2, 1]).slice();
     rules[index] = value || 0;
     ST.update({ placementRules: rules });
   }
@@ -419,8 +533,9 @@ window.BWO_STATS = (function () {
 
   /* ─── Public API ──────────────────────────────────────────────── */
   return Object.freeze({
-    renderScoresSummary,
-    renderPStatTable,
+    renderGameScoring,
+    renderTotals,
+    setSlotPlacement,
     clearStats,
     handleStatCSVFile,
     applyStatCSV,
