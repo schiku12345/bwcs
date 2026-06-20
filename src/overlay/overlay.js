@@ -633,19 +633,8 @@
    * @returns {string[]}
    */
   function _winnerSkinUrls(state) {
-    var team = state.lastWinnerTeamId ? ST.getTeamById(state, state.lastWinnerTeamId) : null;
-    if (!team) return [];
-    var sz = state.teamSize || 4;
-    var urls = [];
-    (team.players || [])
-      .filter(function (p) { return U.getPlayerName(p).trim(); })
-      .slice(0, sz)
-      .forEach(function (p) {
-        var name = U.getPlayerName(p);
-        urls.push(U.skinFullURL(name));
-        urls.push(U.skinFallbackURL(name));
-      });
-    return urls;
+    /* Results board is text + team colours (no player skins) — nothing to preload. */
+    return [];
   }
 
   /**
@@ -704,43 +693,47 @@
    * @param {object} state
    */
   function _renderWinnerPanel(state) {
-    var winTeam = state.lastWinnerTeamId
-      ? ST.getTeamById(state, state.lastWinnerTeamId)
-      : null;
+    var listEl  = gid('results-list');
+    var labelEl = gid('winner-label');
+    if (labelEl) labelEl.textContent = '🏁 Game Results';
+    if (!listEl) return;
 
-    var accents = U.getThemeAccents(state);
-    var acc     = accents[0];
-    var sz      = state.teamSize || 4;
+    var lastGame = (state.gameHistory || []).slice(-1)[0];
+    var results  = lastGame ? (lastGame.results || []) : [];
+    if (!results.length) { listEl.innerHTML = ''; return; }
 
-    if (!winTeam) return;
+    var acc      = U.getThemeAccents(state)[0];
+    var ordinals = C.ORDINALS || ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th'];
 
-    var nameEl = gid('winner-team-name');
-    if (nameEl) {
-      nameEl.textContent  = winTeam.name;
-      nameEl.style.textShadow = '0 0 40px ' + acc + ',0 0 80px ' + acc;
-    }
+    /* Group this game's results by placement (ignore unset = 0), then sort
+       placements ascending. Tied teams share a placement and are listed
+       together, each on its own row showing the same ordinal (e.g. two "3rd"). */
+    var byPlace = {};
+    results.forEach(function (r) {
+      var pl = parseInt(r.placement) || 0;
+      if (pl < 1) return;
+      (byPlace[pl] = byPlace[pl] || []).push(r);
+    });
+    var places = Object.keys(byPlace).map(Number).sort(function (a, b) { return a - b; });
 
-    var players = (winTeam.players || [])
-      .filter(function (p) { return U.getPlayerName(p).trim(); })
-      .slice(0, sz);
+    function medalFor(pl) { return pl === 1 ? '🏆' : pl === 2 ? '🥈' : pl === 3 ? '🥉' : ''; }
 
-    var skinW = sz <= 2 ? 'clamp(110px,11vw,180px)' : 'clamp(90px,9vw,150px)';
-    var ignSz = sz <= 2 ? '1.6vw' : '1.2vw';
-
-    var playersEl = gid('winner-players');
-    if (playersEl) {
-      playersEl.innerHTML = players.map(function (p, i) {
-        var name = U.getPlayerName(p);
-        return '<div class="winner-player" style="animation-delay:' + (i * .15) + 's">' +
-          '<img class="winner-skin"' +
-            ' src="' + U.skinFullURL(name) + '"' +
-            ' onerror="this.src=\'' + U.skinFallbackURL(name) + '\'"' +
-            ' loading="eager"' +
-            ' style="width:' + skinW + ';filter:drop-shadow(0 0 20px ' + acc + ')"/>' +
-          '<div class="winner-ign" style="font-size:' + ignSz + '">' + U.escapeHtml(name) + '</div>' +
+    var html = '';
+    places.forEach(function (pl) {
+      var ord   = ordinals[pl - 1] || (pl + 'th');
+      var medal = medalFor(pl);
+      byPlace[pl].forEach(function (r) {
+        var hex  = COLORS[r.color] || '#ddd';
+        var glow = pl === 1 ? ';text-shadow:0 0 30px ' + acc + ',0 0 60px ' + acc : '';
+        var sz   = pl === 1 ? 'clamp(28px,2.6vw,52px)' : 'clamp(20px,1.9vw,38px)';
+        html += '<div class="result-row" style="display:flex;align-items:center;gap:1vw;justify-content:center;margin:.5vh 0;">' +
+          '<span style="min-width:6vw;text-align:right;font-family:Orbitron,sans-serif;font-weight:900;font-size:' + sz + ';color:' + (pl === 1 ? acc : '#cfd6e6') + glow + '">' + medal + ' ' + ord + '</span>' +
+          '<span style="width:clamp(10px,1vw,16px);height:clamp(10px,1vw,16px);border-radius:50%;background:' + hex + ';box-shadow:0 0 10px ' + hex + ';flex-shrink:0;"></span>' +
+          '<span style="min-width:14vw;text-align:left;font-family:Orbitron,sans-serif;font-weight:700;font-size:' + sz + ';color:' + hex + glow + '">' + U.escapeHtml(r.teamName || '?') + '</span>' +
         '</div>';
-      }).join('');
-    }
+      });
+    });
+    listEl.innerHTML = html;
   }
 
   /**

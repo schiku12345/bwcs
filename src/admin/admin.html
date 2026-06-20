@@ -233,7 +233,7 @@
           </div>
 
           <div class="qa-section" id="qa-summary">
-            <p class="help" style="margin-bottom:6px;">Winner is auto-set from placement #1. Standings show after the winner screen.</p>
+            <p class="help" style="margin-bottom:6px;">Results screen shows every placement (ties grouped together), then the standings table.</p>
             <div class="qa-row">
               <button class="btn btn-pu" onclick="openMapModal(true)">🗺️ Play Map Reveal</button>
             </div>
@@ -396,7 +396,7 @@
         <div class="h1">This Game — Scoring</div>
         <p class="help" style="margin-bottom:8px;">
           Enter each player's <strong>Finals</strong> (final kills) and <strong>Beds</strong> (beds broken),
-          then pick each team's <strong>placement</strong>. Placements carry straight into Finish Game.
+          then pick each team's <strong>placement</strong>. Ties allowed — give two teams the same place and they each score that place's points. Placements carry straight into Finish Game.
         </p>
         <div class="card">
           <div class="drop-zone" onclick="document.getElementById('stat-csv-file').click()" style="margin-bottom:8px;">
@@ -722,10 +722,10 @@
     <div class="modal-box" style="max-width:500px;">
       <div class="modal-title">🏁 FINISH GAME</div>
       <p class="help" style="margin-bottom:8px;">
-        Drag ⠿ to reorder or type a rank number. Team in 1st is auto-set as winner.
+        Type each team's finishing place (1–8). Use the SAME number on multiple teams to tie them — e.g. two teams at 3 both finish 3rd and both score 3rd-place points. You can still have a unique 1st.
       </p>
       <div style="font-size:9px;color:var(--mut);font-weight:700;letter-spacing:1px;margin-bottom:6px;">
-        PLACEMENT ORDER
+        PLACEMENTS — same number = tie
       </div>
       <div id="fm-placements" style="margin-bottom:12px;"></div>
       <p class="help" style="margin-bottom:12px;">

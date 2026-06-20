@@ -546,9 +546,11 @@ window.BWO_DASHBOARD = (function () {
   function openFinishModal() {
     var state = ST.get();
 
-    /* Build placement order from active slots, PRE-SORTED by the
-       placements preselected on the Scores & Stats page (slot.placement).
-       Unset teams (placement 0) fall to the bottom in their natural order. */
+    /* Build the placement list from active slots, PRE-SORTED by the places
+       preselected on the Scores & Stats page (slot.placement). Each team
+       carries an explicit `place` number (1-8). TIES ALLOWED — multiple teams
+       may share the same place. Unset teams (placement 0) default to their
+       sorted position so the admin starts from a sane ordering. */
     _placementOrder = ST.getActiveSlots(state)
       .slice()
       .sort(function (a, b) {
@@ -556,13 +558,14 @@ window.BWO_DASHBOARD = (function () {
         var pb = b.placement || 999;
         return pa - pb;
       })
-      .map(function (slot) {
+      .map(function (slot, i) {
         var team = ST.getTeamById(state, slot.teamId);
         return {
           teamId: slot.teamId,
           name:   team ? team.name : slot.color,
           color:  slot.color,
           score:  slot.score || 0,
+          place:  (slot.placement && slot.placement > 0) ? slot.placement : (i + 1),
         };
       });
 
@@ -589,63 +592,42 @@ window.BWO_DASHBOARD = (function () {
     var el = document.getElementById('fm-placements');
     if (!el) return;
 
-    var rules = ST.get().placementRules || [10, 7, 5, 4, 3, 2, 1, 0];
+    var rules    = ST.get().placementRules || [50, 30, 20, 10, 5, 3, 2, 1];
+    var ordinals = C.ORDINALS || ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th'];
+    var maxPlace = Math.min(8, rules.length);
 
-    el.innerHTML = '<div id="pl-drag-list">' +
-      _placementOrder.map(function (team, i) {
-        var hex = C.COLORS[team.color] || '#fff';
-        var pts = rules[i] || 0;
-        return '<div class="place-row" draggable="true" data-pi="' + i + '" style="cursor:grab;border:1px solid rgba(255,255,255,.08);">' +
-          '<span style="font-size:14px;color:var(--mut);user-select:none;padding:0 4px;">⠿</span>' +
-          '<div style="width:7px;height:7px;border-radius:50%;background:' + hex + ';flex-shrink:0;"></div>' +
-          '<input type="number" min="1" max="' + _placementOrder.length + '" value="' + (i + 1) + '" class="pl-rank-inp pr-inp" data-pi="' + i + '" style="width:42px;font-size:11px;padding:3px;" title="Type rank position"/>' +
-          '<span style="flex:1;font-weight:700;font-size:11px;">' + U.escapeHtml(team.name) + '</span>' +
-          '<span style="font-family:var(--fd);font-size:9px;color:var(--acc2);min-width:32px;text-align:right;">+' + pts + '</span>' +
-          '</div>';
-      }).join('') +
-      '</div>';
-
-    // Attach drag-and-drop reorder
-    var dragList = document.getElementById('pl-drag-list');
-    var dragSrc  = -1;
-
-    dragList.addEventListener('dragstart', function (e) {
-      var row = e.target.closest('.place-row');
-      if (!row) return;
-      dragSrc = parseInt(row.getAttribute('data-pi'));
-      e.dataTransfer.effectAllowed = 'move';
+    /* Display sorted by place ascending. TIES ALLOWED — multiple teams may
+       carry the same place number, in which case they each score that place's
+       points (e.g. two teams at 3 → both 3rd, both +20). */
+    var rows = _placementOrder.slice().sort(function (a, b) {
+      return (a.place || 999) - (b.place || 999);
     });
 
-    dragList.addEventListener('dragover', function (e) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-    });
+    el.innerHTML = rows.map(function (team) {
+      var hex   = C.COLORS[team.color] || '#fff';
+      var place = (team.place >= 1 && team.place <= maxPlace) ? team.place : 0;
+      var pts   = place >= 1 ? (rules[place - 1] || 0) : 0;
+      var ord   = place >= 1 ? (ordinals[place - 1] || (place + 'th')) : '—';
+      return '<div class="place-row" data-tid="' + team.teamId + '" style="display:flex;align-items:center;gap:8px;border:1px solid rgba(255,255,255,.08);padding:5px 7px;margin-bottom:4px;border-radius:4px;">' +
+        '<input type="number" min="1" max="' + maxPlace + '" value="' + (team.place || '') + '" class="pl-place-inp" data-tid="' + team.teamId + '" title="Finishing place — type the SAME number on two teams to tie them" style="width:46px;font-size:12px;font-weight:900;padding:3px;text-align:center;"/>' +
+        '<span style="font-size:10px;font-weight:700;color:var(--mut);min-width:30px;">' + ord + '</span>' +
+        '<div style="width:7px;height:7px;border-radius:50%;background:' + hex + ';flex-shrink:0;"></div>' +
+        '<span style="flex:1;font-weight:700;font-size:11px;">' + U.escapeHtml(team.name) + '</span>' +
+        '<span style="font-family:var(--fd);font-size:9px;color:var(--acc2);min-width:32px;text-align:right;">+' + pts + '</span>' +
+        '</div>';
+    }).join('');
 
-    dragList.addEventListener('drop', function (e) {
-      e.preventDefault();
-      var row = e.target.closest('.place-row');
-      if (!row || dragSrc < 0) return;
-      var dst = parseInt(row.getAttribute('data-pi'));
-      if (dst === dragSrc) return;
-      var tmp = _placementOrder[dragSrc];
-      _placementOrder.splice(dragSrc, 1);
-      _placementOrder.splice(dst, 0, tmp);
-      dragSrc = -1;
-      _renderPlacementOrder();
-    });
-
-    // Direct rank number input
-    dragList.addEventListener('change', function (e) {
+    /* Edit a team's place. Duplicates are intentional (ties). onchange (not
+       addEventListener) so re-renders don't stack listeners. Change bubbles
+       from the number inputs up to the container. */
+    el.onchange = function (e) {
       var inp = e.target;
-      if (!inp.classList.contains('pl-rank-inp')) return;
-      var fromIdx = parseInt(inp.getAttribute('data-pi'));
-      var toIdx   = U.clamp((parseInt(inp.value) || 1) - 1, 0, _placementOrder.length - 1);
-      if (toIdx === fromIdx) return;
-      var tmp = _placementOrder[fromIdx];
-      _placementOrder.splice(fromIdx, 1);
-      _placementOrder.splice(toIdx, 0, tmp);
-      _renderPlacementOrder();
-    });
+      if (!inp.classList || !inp.classList.contains('pl-place-inp')) return;
+      var tid  = inp.getAttribute('data-tid');
+      var val  = U.clamp((parseInt(inp.value) || 1), 1, maxPlace);
+      var item = _placementOrder.find(function (t) { return t.teamId === tid; });
+      if (item) { item.place = val; _renderPlacementOrder(); }
+    };
   }
 
   /**
@@ -665,7 +647,9 @@ window.BWO_DASHBOARD = (function () {
     var placementPts  = state.placementRules || [50, 30, 20, 10, 5, 3, 2, 1];
     var rules         = state.pointRules     || {};
     var playerStats   = state.playerStats    || {};
-    var winnerId      = _placementOrder.length > 0 ? _placementOrder[0].teamId : null;
+    /* Sort by place so 1st-place team(s) come first. Ties share a place. */
+    var _sortedByPlace = _placementOrder.slice().sort(function (a, b) { return (a.place || 999) - (b.place || 999); });
+    var winnerId      = _sortedByPlace.length > 0 ? _sortedByPlace[0].teamId : null;
 
     // Snapshot standings before applying points (for ▲▼ delta)
     var prevRanks = {};
@@ -694,8 +678,9 @@ window.BWO_DASHBOARD = (function () {
     var gameResults = [];
     (state.slots || []).forEach(function (slot) {
       if (!slot.teamId) return;
-      var placeIdx = _placementOrder.findIndex(function (p) { return p.teamId === slot.teamId; });
-      var placePts = placeIdx >= 0 ? (placementPts[placeIdx] || 0) : 0;
+      var pe       = _placementOrder.find(function (p) { return p.teamId === slot.teamId; });
+      var place    = (pe && pe.place >= 1) ? pe.place : 0;
+      var placePts = place >= 1 ? (placementPts[place - 1] || 0) : 0;
       var team     = ST.getTeamById(state, slot.teamId);
       var split    = _teamStatSplit(team);
       var statPts  = split.finalsPts + split.bedsPts;
@@ -708,7 +693,7 @@ window.BWO_DASHBOARD = (function () {
         finals:    split.finals,
         beds:      split.beds,
         placePts:  placePts,
-        placement: placeIdx + 1,
+        placement: place,
         color:     slot.color,
       });
     });
@@ -758,8 +743,11 @@ window.BWO_DASHBOARD = (function () {
     setOverlayMode('summary');
     _setTimerButtonState(false);
 
-    var winnerName = _placementOrder[0] ? _placementOrder[0].name : '?';
-    UI.notify('Game ' + histEntry.gameNumber + ' saved! Winner: ' + winnerName + ' 🏆');
+    var _firstPlace = _sortedByPlace.filter(function (p) { return p.place === 1; });
+    var winnerName  = _firstPlace.length > 1
+      ? _firstPlace.map(function (p) { return p.name; }).join(' & ') + ' (tie)'
+      : (_sortedByPlace[0] ? _sortedByPlace[0].name : '?');
+    UI.notify('Game ' + histEntry.gameNumber + ' saved! 1st: ' + winnerName + ' 🏆');
 
     // The game number just advanced → the admin state subscriber
     // (BWO_GAMESETUP.maybeApplyQueueColors) loads the next setup game's

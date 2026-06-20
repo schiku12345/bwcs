@@ -224,8 +224,8 @@ window.BWO_STATS = (function () {
 
   /**
    * setSlotPlacement(slotIdx, rank) → void
-   * Sets a team's preselected finishing place. Ranks are kept unique —
-   * assigning a rank already used by another team clears that other team.
+   * Sets a team's preselected finishing place. TIES ALLOWED — multiple teams
+   * may share the same place (e.g. two teams at 3rd both score 3rd-place points).
    *
    * @param {number} slotIdx - Index in state.slots
    * @param {number} rank    - 1 = 1st/Win, 0 = unset
@@ -235,12 +235,7 @@ window.BWO_STATS = (function () {
     var slots = U.deepClone(state.slots || []);
     if (!slots[slotIdx]) return;
     rank = parseInt(rank) || 0;
-    if (rank > 0) {
-      slots.forEach(function (s, i) {
-        if (i !== slotIdx && s.placement === rank) s.placement = 0;
-      });
-    }
-    slots[slotIdx].placement = rank;
+    slots[slotIdx].placement = rank;   // ties allowed: do NOT clear the same rank from other teams
     ST.update({ slots: slots });
   }
 
