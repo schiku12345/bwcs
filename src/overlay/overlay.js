@@ -112,6 +112,12 @@
       sb.style.transform       = 'scale(' + (state.sbScale || 1) + ')';
       sb.style.transformOrigin = 'top right';
       if (state.sbW) sb.style.width = state.sbW + 'px';
+      /* Scale the text with the box: the scoreboard's font-size tracks its
+         width relative to the editor's default (260px), and every inner size
+         is em-based (see overlay.css). So resizing the scoreboard bigger in
+         the layout editor enlarges the team/points text too — on top of (and
+         independent of) the transform scale applied above. */
+      sb.style.fontSize = (16 * ((state.sbW || 260) / 260)) + 'px';
     }
 
     /* Info / tournament panel (top-left by default) */
@@ -675,8 +681,10 @@
   /**
    * _renderSummaryScreen(state) → void
    * Populates BOTH panels of the summary screen:
-   *   Phase 1 — Winner Panel (shown first, winnerDisplaySecs = 10s)
-   *   Phase 2 — Standings Panel (shown after)
+   *   Phase 1 — Game-results board (only SHOWN on a 1st-place tie; see
+   *             _showSummaryPhase / _firstPlaceTie). Rendered regardless so
+   *             it is ready if needed.
+   *   Phase 2 — Standings Panel (always shown).
    *
    * @param {object} state
    */
@@ -686,28 +694,47 @@
   }
 
   /**
+   * _firstPlaceTie(state) → boolean
+   * True when the most-recently-finished game ended with 2+ teams sharing
+   * 1st place. The Phase-1 game-results board is shown ONLY in this case
+   * (a clear single winner skips straight to the standings table).
+   *
+   * @param {object} state
+   * @returns {boolean}
+   */
+  function _firstPlaceTie(state) {
+    var lastGame = (state.gameHistory || []).slice(-1)[0];
+    var results  = lastGame ? (lastGame.results || []) : [];
+    var firsts   = results.filter(function (r) { return (parseInt(r.placement) || 0) === 1; });
+    return firsts.length >= 2;
+  }
+
+  /**
    * _renderWinnerPanel(state) → void
-   * Populates the winner panel with the winning team's name and
-   * full-body skin renders for each player.
+   * Populates the Phase-1 game-results board with the just-finished game's
+   * placements, grouped by place (tied teams share an ordinal). Built from
+   * the same .std-* classes as the standings table so the two screens look
+   * consistent. (Only SHOWN on a 1st-place tie — see _showSummaryPhase.)
    *
    * @param {object} state
    */
   function _renderWinnerPanel(state) {
-    var listEl  = gid('results-list');
-    var labelEl = gid('winner-label');
-    if (labelEl) labelEl.textContent = '🏁 Game Results';
-    if (!listEl) return;
+    var rowsEl = gid('tie-rows');
+    if (!rowsEl) return;
+
+    var subEl   = gid('tie-subtitle');
+    var headsEl = gid('tie-col-heads');
+
+    /* Event name as subtitle — matches the standings panel. */
+    if (subEl) subEl.textContent = (state.startingEventName || 'GLOBAL CHAMPIONSHIP').toUpperCase();
 
     var lastGame = (state.gameHistory || []).slice(-1)[0];
     var results  = lastGame ? (lastGame.results || []) : [];
-    if (!results.length) { listEl.innerHTML = ''; return; }
-
-    var acc      = U.getThemeAccents(state)[0];
     var ordinals = C.ORDINALS || ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th'];
 
-    /* Group this game's results by placement (ignore unset = 0), then sort
-       placements ascending. Tied teams share a placement and are listed
-       together, each on its own row showing the same ordinal (e.g. two "3rd"). */
+    /* Group this game's results by placement (ignore unset = 0), places
+       ascending. Tied teams share a placement and each get their own row
+       showing the same ordinal (e.g. two "1st"). */
     var byPlace = {};
     results.forEach(function (r) {
       var pl = parseInt(r.placement) || 0;
@@ -716,24 +743,49 @@
     });
     var places = Object.keys(byPlace).map(Number).sort(function (a, b) { return a - b; });
 
-    function medalFor(pl) { return pl === 1 ? '🏆' : pl === 2 ? '🥈' : pl === 3 ? '🥉' : ''; }
+    /* Scale fonts with the number of rows so big rosters still fit — same
+       formula as _renderStandingsPanel. */
+    var n      = Math.max(1, places.reduce(function (sum, pl) { return sum + byPlace[pl].length; }, 0));
+    var fs     = Math.max(.9,  2.2 - n * .13) + 'vw';
+    var rankFs = Math.max(1.2, 3.0 - n * .18) + 'vw';
+    var cols   = '7vw 1fr 12vw';
 
-    var html = '';
+    if (headsEl) {
+      headsEl.style.gridTemplateColumns = cols;
+      headsEl.innerHTML =
+        '<div class="std-col-lbl">PLACE</div>' +
+        '<div class="std-col-lbl left">Team</div>' +
+        '<div class="std-col-lbl">+PTS</div>';
+    }
+
+    rowsEl.innerHTML = '';
+    var rowIdx = 0;
+
     places.forEach(function (pl) {
-      var ord   = ordinals[pl - 1] || (pl + 'th');
-      var medal = medalFor(pl);
+      var ord        = ordinals[pl - 1] || (pl + 'th');
+      var rankCls    = pl === 1 ? 'top1' : pl === 2 ? 'top2' : pl === 3 ? 'top3' : '';
+      var rankNumCls = pl === 1 ? 'r1'   : pl === 2 ? 'r2'   : pl === 3 ? 'r3'   : '';
+
       byPlace[pl].forEach(function (r) {
-        var hex  = COLORS[r.color] || '#ddd';
-        var glow = pl === 1 ? ';text-shadow:0 0 30px ' + acc + ',0 0 60px ' + acc : '';
-        var sz   = pl === 1 ? 'clamp(28px,2.6vw,52px)' : 'clamp(20px,1.9vw,38px)';
-        html += '<div class="result-row" style="display:flex;align-items:center;gap:1vw;justify-content:center;margin:.5vh 0;">' +
-          '<span style="min-width:6vw;text-align:right;font-family:Orbitron,sans-serif;font-weight:900;font-size:' + sz + ';color:' + (pl === 1 ? acc : '#cfd6e6') + glow + '">' + medal + ' ' + ord + '</span>' +
-          '<span style="width:clamp(10px,1vw,16px);height:clamp(10px,1vw,16px);border-radius:50%;background:' + hex + ';box-shadow:0 0 10px ' + hex + ';flex-shrink:0;"></span>' +
-          '<span style="min-width:14vw;text-align:left;font-family:Orbitron,sans-serif;font-weight:700;font-size:' + sz + ';color:' + hex + glow + '">' + U.escapeHtml(r.teamName || '?') + '</span>' +
-        '</div>';
+        var hex = COLORS[r.color] || '#aaa';
+
+        var row = document.createElement('div');
+        row.className            = 'std-row ' + rankCls;
+        row.style.gridTemplateColumns = cols;
+        row.style.animationDelay = (rowIdx * .07) + 's';
+
+        row.innerHTML =
+          '<div class="std-rank ' + rankNumCls + '" style="font-size:' + rankFs + '">' + ord + '</div>' +
+          '<div style="display:flex;align-items:center;gap:.5vw;min-width:0;">' +
+            '<div style="width:clamp(8px,.9vw,14px);height:clamp(8px,.9vw,14px);border-radius:50%;background:' + hex + ';flex-shrink:0;box-shadow:0 0 8px ' + hex + '88;"></div>' +
+            '<span class="std-team-name" style="font-size:' + fs + ';color:' + hex + '">' + U.escapeHtml(r.teamName || '?') + '</span>' +
+          '</div>' +
+          '<div class="std-pts" style="font-size:' + fs + '">+' + (r.pts || 0) + '</div>';
+
+        rowsEl.appendChild(row);
+        rowIdx++;
       });
     });
-    listEl.innerHTML = html;
   }
 
   /**
@@ -816,17 +868,19 @@
 
   /**
    * _showSummaryPhase(phase, state) → void
-   * Switches the summary screen between 'winner' and 'standings' phases.
-   * Winner shows for DEFAULTS.winnerDisplaySecs then auto-advances to standings.
+   * Switches the summary screen between 'tie' and 'standings' phases.
+   * The 'tie' phase (game-results board) shows for DEFAULTS.winnerDisplaySecs
+   * then auto-advances to the standings. Entry phase is chosen by the caller:
+   * 'tie' only on a 1st-place tie, otherwise straight to 'standings'.
    *
-   * @param {string} phase - 'winner' | 'standings'
+   * @param {string} phase - 'tie' | 'standings'
    * @param {object} state
    */
   function _showSummaryPhase(phase, state) {
     var wp = gid('winner-panel');
     var sp = gid('standings-panel');
 
-    if (phase === 'winner') {
+    if (phase === 'tie') {
       if (sp) sp.classList.remove('show');
       setTimeout(function () { if (wp) wp.classList.add('show'); }, 100);
       clearTimeout(_summaryPhaseTimeout);
@@ -1034,13 +1088,14 @@
         GAME_PANELS.forEach(function (id) { var el = gid(id); if (el) el.classList.add('hidden'); });
         _renderSummaryScreen(state);
         var ss = gid('summary-screen');
-        /* Preload the winner's skins BEFORE revealing the screen so the
-           full-body renders are already on-screen when it fades in
-           (no late pop-in). Falls back after 3s if a skin host is slow. */
         _preloadImages(_winnerSkinUrls(state), function () {
           if (ST.get().overlayMode !== 'summary') return;  // user moved on
           if (ss) ss.classList.add('show');
-          _showSummaryPhase('winner', ST.get());
+          /* Phase 1 (the game-results board) is shown ONLY when the game
+             ended with a tie for 1st place; a clear winner skips straight
+             to the standings table. */
+          var s = ST.get();
+          _showSummaryPhase(_firstPlaceTie(s) ? 'tie' : 'standings', s);
         }, 3000);
         break;
 

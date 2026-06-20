@@ -218,8 +218,9 @@
 
 
   <!-- ──────────────────────────────────────────────────────────────
-       WINNER + STANDINGS SUMMARY SCREEN
-       Phase 1 (10s): Winner panel — full-body skins + team name
+       RESULTS + STANDINGS SUMMARY SCREEN
+       Phase 1 (10s): Game-results board — shown ONLY on a 1st-place tie,
+                      styled like the standings table for consistency
        Phase 2:      Standings panel — full-screen leaderboard
   ────────────────────────────────────────────────────────────────── -->
   <div id="summary-screen" class="fullscreen" aria-label="Game results">
@@ -230,10 +231,17 @@
 
     <div class="sum-inner">
 
-      <!-- WINNER PANEL (Phase 1) -->
+      <!-- TIE / GAME-RESULTS PANEL (Phase 1 — shown ONLY on a 1st-place tie) -->
+      <!-- Mirrors the standings panel below for visual consistency. -->
       <div id="winner-panel" aria-label="Game results">
-        <div class="winner-label" id="winner-label">🏁 Game Results</div>
-        <div class="results-list" id="results-list" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.4vh;margin-top:2vh;"></div>
+        <div class="std-header">
+          <div class="std-title">GAME RESULTS</div>
+          <div class="std-subtitle" id="tie-subtitle">GLOBAL CHAMPIONSHIP</div>
+        </div>
+        <!-- Column headers injected by overlay.js -->
+        <div class="std-col-heads" id="tie-col-heads"></div>
+        <!-- Placement rows injected by overlay.js -->
+        <div class="std-rows" id="tie-rows"></div>
       </div>
 
       <!-- STANDINGS PANEL (Phase 2) -->

@@ -173,22 +173,27 @@ html, body {
   top: 1.5%; right: 1.5%;
   background: var(--panel);
   border: 1px solid var(--bor);
-  border-radius: 12px;
-  padding: 10px 14px;
+  border-radius: .75em;
+  padding: .625em .875em;
   z-index: 50;
   animation: none;
   box-shadow: 0 0 28px var(--b1), 0 0 52px var(--glow), inset 0 0 22px var(--b2);
   border-color: rgba(255,255,255,.18);
   transition: opacity .3s;
+  /* font-size is set inline by overlay.js applyLayout() from the box width,
+     so the team/points text scales when the scoreboard is resized in the
+     layout editor (on top of any transform scale). Default = 16px. All
+     sizes below are em so they track that one number. */
+  font-size: 16px;
 }
 #scoreboard.hidden { opacity: 0; pointer-events: none; }
 
-.sb-title  { font-family: var(--fd); font-size: .5vw; letter-spacing: .2vw; color: rgba(255,255,255,.3); text-align: center; margin-bottom: 8px; }
-.sb-row    { display: flex; align-items: center; gap: 6px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,.04); }
+.sb-title  { font-family: var(--fd); font-size: .6em; letter-spacing: .4em; color: rgba(255,255,255,.3); text-align: center; margin-bottom: .833em; }
+.sb-row    { display: flex; align-items: center; gap: .375em; padding: .3125em 0; border-bottom: 1px solid rgba(255,255,255,.04); }
 .sb-row:last-child { border-bottom: none; }
-.sb-dot    { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.sb-name   { font-size: .72vw; font-weight: 700; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 8vw; }
-.sb-score  { font-family: var(--fd); font-size: .8vw; font-weight: 900; text-align: right; min-width: 2vw; }
+.sb-dot    { width: .5em; height: .5em; border-radius: 50%; flex-shrink: 0; }
+.sb-name   { font-size: .864em; font-weight: 700; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 11.1em; }
+.sb-score  { font-family: var(--fd); font-size: .96em; font-weight: 900; text-align: right; min-width: 2.5em; }
 
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -381,17 +386,11 @@ html, body {
 #summary-screen { overflow: hidden; display: flex; flex-direction: column; }
 .sum-inner      { position: relative; z-index: 1; display: flex; flex-direction: column; height: 100%; }
 
-/* Winner panel */
-#winner-panel        { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4vh 6vw; opacity: 0; transition: opacity .5s; }
-#winner-panel.show   { opacity: 1; }
-
-.winner-label     { font-family: var(--fd); font-size: .9vw; font-weight: 900; letter-spacing: .6vw; text-transform: uppercase; color: rgba(255,255,255,.4); margin-bottom: 1.5vh; }
-.winner-team-name { font-family: var(--fd); font-size: 3.5vw; font-weight: 900; letter-spacing: .3vw; text-transform: uppercase; color: #fff; text-shadow: 0 0 40px var(--acc); margin-bottom: 3vh; text-align: center; animation: winnerIn .8s cubic-bezier(.22, 1, .36, 1) .2s both; }
-.winner-players   { display: flex; gap: 4vw; justify-content: center; margin-bottom: 2vh; }
-.winner-player    { display: flex; flex-direction: column; align-items: center; gap: 1vh; animation: winnerIn .8s cubic-bezier(.22, 1, .36, 1) both; }
-.winner-player:nth-child(2) { animation-delay: .15s; }
-.winner-skin      { border-radius: 10px; filter: drop-shadow(0 0 20px var(--acc)); }
-.winner-ign       { font-family: var(--fd); font-weight: 900; letter-spacing: .2vw; color: #fff; text-align: center; }
+/* Tie / game-results panel (Phase 1) — shown only on a 1st-place tie.
+   Mirrors the standings panel layout (reuses .std-* classes) so the
+   overlay stays visually consistent. */
+#winner-panel        { position: absolute; inset: 0; display: flex; flex-direction: column; padding: 3vh 5vw; opacity: 0; transition: opacity .5s; pointer-events: none; z-index: 3; }
+#winner-panel.show   { opacity: 1; pointer-events: auto; }
 
 /* Standings panel — full screen, top-left anchored */
 #standings-panel       { position: absolute; inset: 0; display: flex; flex-direction: column; padding: 3vh 5vw; opacity: 0; transition: opacity .6s; pointer-events: none; z-index: 2; }
